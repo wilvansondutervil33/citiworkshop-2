@@ -44,7 +44,7 @@ class Ticket(Base):
     opened_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    assigned_to: Mapped["Engineer" | None] = relationship(back_populates="assigned_tickets")
+    assigned_to: Mapped["Engineer"] = relationship(back_populates="assigned_tickets")
     created_by: Mapped["User"] = relationship(back_populates="created_tickets")
     location: Mapped["Seat"] = relationship(back_populates="tickets")
     notes: Mapped[list["Note"]] = relationship(back_populates="ticket")

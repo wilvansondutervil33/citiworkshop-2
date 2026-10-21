@@ -1,6 +1,6 @@
 from __future__ import annotations
 from sqlalchemy import Integer, Boolean, CheckConstraint, String, Enum as SqlEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
 from .base import Base

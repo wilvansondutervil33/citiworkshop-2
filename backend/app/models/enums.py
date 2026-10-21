@@ -21,3 +21,9 @@ class EngineerAvailability(str, Enum):
     AVAILABLE = "Available"
     BUSY = "Busy"
     OFF_DUTY = "Off-Duty"
+
+class SeatType(str, Enum):
+    DESK = "Desk"
+    MEETING_ROOM = "Meeting Room"
+    COMMON_AREA = "Common Area"
+    OTHER = "Other"

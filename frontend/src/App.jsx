@@ -1,35 +1,63 @@
-import { useState } from 'react'
-import reactLogo from '/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Container, Typography, Box, Snackbar, Alert} from '@mui/material'
+import {useState} from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
-function App() {
-  const [count, setCount] = useState(0)
+import LoginForm from './components/auth/LoginForm.jsx';
+import AppHeader from './components/layout/AppHeader.jsx';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+
+
+
+function Dashboard(){
+  const {user, logout} = useAuth()
+  const [notification, setNotification] = useState(null)
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <BrowserRouter>
+        <AppHeader username={user?.sub} role={user?.role} onLogout={logout}>
+        <Routes>
+          <Route path='/' element = {
+            <Container maxWidth="lg" sx={{mt:4}}>
+              <Typography variant='h5' component="h2" gutterBottom>
+                Fleet Overview
+              </Typography>
+              
+              
+            </Container>
+          } exact= {true}/>
+    
+          <Route path='*' element= {<Typography variant="h5" component="h2" gutterBottom>
+                404
+              </Typography>}/>
+        </Routes>
+
+        <Snackbar open={Boolean(notification)} autoHideDuration = {4000} onClose={() => setNotification(null)}>
+          <Alert severity='success' onClose={() => setNotification(null)}>
+            {notification}
+          </Alert>
+        </Snackbar>
+        </AppHeader>
+      </BrowserRouter>
+    
+    
     </>
+  );
+}
+
+
+function AppContent() {
+  const {isAuthenticated} = useAuth();
+  return isAuthenticated ? <Dashboard /> : <LoginForm />;
+}
+
+function App(){
+  
+  return (
+    <AuthProvider>
+      <AppContent/>
+    </AuthProvider>
   )
 }
 
-export default App
+export default App;

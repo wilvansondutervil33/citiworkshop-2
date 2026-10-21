@@ -2,7 +2,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models import UserRole
 
 class UserBase(BaseModel):
-    username: str 
+    email: str
+    name: str
     role: UserRole
     
 class UserCreate(UserBase):

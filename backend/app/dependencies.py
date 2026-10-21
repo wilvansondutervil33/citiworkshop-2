@@ -36,7 +36,7 @@ async def get_current_user(
     except jwt.InvalidTokenError:
         raise cred_exception
 
-    res = await db.execute(select(User).where(User.username == username))
+    res = await db.execute(select(User).where(User.email == username))
     user = res.scalar_one_or_none()
     if user is None:
         raise cred_exception

@@ -15,17 +15,17 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
-    res = await db.execute(select(User).where(User.username == form_data.username))
+    res = await db.execute(select(User).where(User.email == form_data.username))
     user = res.scalar_one_or_none()
 
     if user is None or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code= status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers= {"WWW-Authenicate": "Bearer"}
         )
 
-    access_token = create_access_token(data = {'sub': user.username, "role": user.role.value})
+    access_token = create_access_token(data = {'sub': user.email, "role": user.role.value})
     return Token(access_token=access_token, token_type="bearer")
 
 @router.post("/register", response_model= UserRead, status_code=status.HTTP_201_CREATED)
@@ -34,15 +34,16 @@ async def register_user(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_role(UserRole.FACILITY_ADMIN)),
 ) -> User:
-    existing = await db.execute(select(User).where(User.username == payload.username))
+    existing = await db.execute(select(User).where(User.email == payload.email))
     if existing .scalar_one_or_none() is not None:
         raise HTTPException(
             status_code= status.HTTP_400_BAD_REQUEST,
-            detail= f"Username '{payload.username}' is already taken",
+            detail= f"Email '{payload.email}' is already taken",
         )
 
     user = User(
-        username = payload.username,
+        email = payload.email,
+        name = payload.name,
         hashed_password = hash_password(payload.hashed_password),
         role = payload.role
     )
