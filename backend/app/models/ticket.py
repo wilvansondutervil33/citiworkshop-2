@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 
 from .base import Base
-from .enums import TicketPriority, TicketStatus
+from .enums import TicketPriority, TicketStatus, IssueType
 
 if TYPE_CHECKING:
     from .engineer import Engineer
@@ -37,6 +37,13 @@ class Ticket(Base):
             values_callable=lambda enum_cls: [member.value for member in enum_cls],
         ),
     default=TicketStatus.OPEN)
+    issue_type: Mapped[IssueType] = mapped_column(
+        SqlEnum(
+            IssueType,
+            name="issue_type",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+    default=IssueType.OTHER, server_default=IssueType.OTHER.value)
     assigned_to_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("engineers.id"))
     created_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     location_id: Mapped[int] = mapped_column(Integer, ForeignKey("seats.id"))

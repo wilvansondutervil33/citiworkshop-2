@@ -276,17 +276,17 @@ INSERT INTO engineers (id, user_id, max_workload, building_id, is_active) VALUES
 -- -------------------------------------------------------------------------
 -- Tickets
 -- -------------------------------------------------------------------------
-INSERT INTO tickets (id, title, description, priority, status, assigned_to_id, created_by_id, location_id, created_at, opened_at, closed_at) VALUES
-(1,  'Air conditioning not working',        'No cool air coming from the vents near my desk since this morning.', 'Critical', 'In-Progress', 1,    2,  24,  '2026-10-19 08:00:00', '2026-10-19 09:00:00', NULL),
-(2,  'Monitor flickering',                  'External monitor flickers every few seconds when connected.',        'Medium',   'Open',        NULL, 3,  2,   '2026-10-20 08:00:00', NULL,                  NULL),
-(3,  'Wi-Fi drops in meeting room',         'Video calls disconnect every 10 minutes in this room.',              'Medium',   'Blocked',     7,    4,  139, '2026-10-16 08:00:00', '2026-10-16 09:00:00', NULL),
-(4,  'Broken desk chair',                   'Chair height lever is broken and the seat keeps sinking.',           'Low',      'Resolved',    3,    5,  46,  '2026-10-13 08:00:00', '2026-10-13 09:00:00', NULL),
-(5,  'Leaking tap in kitchen',              'Kitchen tap drips constantly and water is pooling on the counter.',  'Medium',   'Closed',      4,    6,  80,  '2026-10-09 08:00:00', '2026-10-09 09:00:00', '2026-10-11 08:00:00'),
-(6,  'Projector will not connect',          'Projector shows no signal with both HDMI and wireless casting.',     'Critical', 'In-Progress', 5,    7,  109, '2026-10-20 08:00:00', '2026-10-20 09:00:00', NULL),
-(7,  'Desk lamp not working',               'Desk lamp does not turn on; tried a new bulb already.',              'Low',      'Open',        NULL, 8,  93,  '2026-10-21 06:00:00', NULL,                  NULL),
-(8,  'Docking station not charging laptop', 'Laptop shows not charging when plugged into the dock.',              'Medium',   'In-Progress', 8,    9,  125, '2026-10-18 08:00:00', '2026-10-18 09:00:00', NULL),
-(9,  'Lights flickering in common area',    'Ceiling lights flicker constantly near the lounge area.',            'Medium',   'Closed',      9,    10, 180, '2026-10-06 08:00:00', '2026-10-06 09:00:00', '2026-10-08 08:00:00'),
-(10, 'Badge reader faulty',                 'Badge reader at the floor entrance rejects valid badges.',           'Critical', 'Open',        10,   2,  191, '2026-10-21 06:30:00', NULL,                  NULL);
+INSERT INTO tickets (id, title, description, priority, status, issue_type, assigned_to_id, created_by_id, location_id, created_at, opened_at, closed_at) VALUES
+(1,  'Air conditioning not working',        'No cool air coming from the vents near my desk since this morning.', 'Critical', 'In-Progress', 'Other',      1,    2,  24,  '2026-10-19 08:00:00', '2026-10-19 09:00:00', NULL),
+(2,  'Monitor flickering',                  'External monitor flickers every few seconds when connected.',        'Medium',   'Open', 'Hardware',          NULL, 3,  2,   '2026-10-20 08:00:00', NULL,                  NULL),
+(3,  'Wi-Fi drops in meeting room',         'Video calls disconnect every 10 minutes in this room.',              'Medium',   'Blocked', 'Network',        7,    4,  139, '2026-10-16 08:00:00', '2026-10-16 09:00:00', NULL),
+(4,  'Broken desk chair',                   'Chair height lever is broken and the seat keeps sinking.',           'Low',      'Resolved', 'Structural',    3,    5,  46,  '2026-10-13 08:00:00', '2026-10-13 09:00:00', NULL),
+(5,  'Leaking tap in kitchen',              'Kitchen tap drips constantly and water is pooling on the counter.',  'Medium',   'Closed', 'Plumbing',        4,    6,  80,  '2026-10-09 08:00:00', '2026-10-09 09:00:00', '2026-10-11 08:00:00'),
+(6,  'Projector will not connect',          'Projector shows no signal with both HDMI and wireless casting.',     'Critical', 'In-Progress', 'Hardware',   5,    7,  109, '2026-10-20 08:00:00', '2026-10-20 09:00:00', NULL),
+(7,  'Desk lamp not working',               'Desk lamp does not turn on; tried a new bulb already.',              'Low',      'Open', 'Hardware',          NULL, 8,  93,  '2026-10-21 06:00:00', NULL,                  NULL),
+(8,  'Docking station not charging laptop', 'Laptop shows not charging when plugged into the dock.',              'Medium',   'In-Progress', 'Hardware',   8,    9,  125, '2026-10-18 08:00:00', '2026-10-18 09:00:00', NULL),
+(9,  'Lights flickering in common area',    'Ceiling lights flicker constantly near the lounge area.',            'Medium',   'Closed', 'Structural',      9,    10, 180, '2026-10-06 08:00:00', '2026-10-06 09:00:00', '2026-10-08 08:00:00'),
+(10, 'Badge reader faulty',                 'Badge reader at the floor entrance rejects valid badges.',           'Critical', 'Open', 'Hardware',          10,   2,  191, '2026-10-21 06:30:00', NULL,                  NULL);
  
  
 -- -------------------------------------------------------------------------

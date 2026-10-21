@@ -1,142 +1,119 @@
-import { AppBar, Toolbar, Typography, Box, Button, Link, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import HomeIcon from '@mui/icons-material/Home';
-import {Analytics as AnalyticsIcon} from '@mui/icons-material';
-import SettingsIcon from '@mui/icons-material/Settings';
-import ReportIcon from '@mui/icons-material/Report';
-import PersonIcon from '@mui/icons-material/Person';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import {
+  AppBar, Avatar, Box, Button, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useMediaQuery,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import { Analytics as AnalyticsIcon } from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { useFacilityData } from '../../context/FacilityDataContext.jsx';
+import { monoFont } from '../../theme';
 
-//added username, role, onLogout to function params
-function AppHeader({username, role, onLogout, children}) {
+const drawerWidth = 240;
 
-  const drawerWidth = 240;
+const NAV_ITEMS = [
+  { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+  { label: 'Tickets', path: '/tickets', icon: <ConfirmationNumberIcon /> },
+  { label: 'Analytics', path: '/analytics', icon: <AnalyticsIcon /> },
+];
+
+function AppHeader({ username, role, onLogout, children }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { me } = useFacilityData();
+  const rail = theme.palette.rail;
+
   const handleLogout = () => {
     onLogout();
     navigate('/', { replace: true });
   };
-  
+
+  const displayName = me?.name ?? username;
+  const initials = displayName?.split(/[\s.@]+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: rail.main, color: rail.contrastText, p: 1.75 }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, px: 1, py: 1 }}>
+        <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 22, fontStretch: '80%' }}>ACME</Typography>
+        <Typography sx={{ fontFamily: monoFont, fontSize: 11, color: rail.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Facilities Desk
+        </Typography>
+      </Box>
+
+      <Typography variant="overline" sx={{ color: rail.muted, px: 1, mt: 3 }}>Workspace</Typography>
+      <List dense disablePadding>
+        {NAV_ITEMS.map((item) => {
+          const selected = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
+          return (
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton
+                component={RouterLink}
+                to={item.path}
+                selected={selected}
+                onClick={() => setMobileOpen(false)}
+                sx={{
+                  borderRadius: 1,
+                  color: 'inherit',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+                  '&.Mui-selected, &.Mui-selected:hover': { bgcolor: 'rgba(255,255,255,0.12)' },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'inherit', minWidth: 36, opacity: 0.85 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, px: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Avatar sx={{ width: 30, height: 30, fontSize: 12, bgcolor: '#3a4a6e' }}>{initials}</Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" noWrap>{displayName}</Typography>
+            <Typography variant="caption" sx={{ color: rail.muted }}>{role}</Typography>
+          </Box>
+        </Box>
+        <Button onClick={handleLogout} startIcon={<LogoutIcon />} sx={{ color: 'inherit', justifyContent: 'flex-start' }}>
+          Log out
+        </Button>
+      </Box>
+    </Box>
+  );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-          position="fixed"
-          sx={{
-            backgroundColor: 'blue',
-            width: `calc(100% - ${drawerWidth}px)`,
-            ml: `${drawerWidth}px`,
-            zIndex: (theme) => theme.zIndex.drawer + 1, // sit above the drawer
-          }}
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      {isMobile && (
+        <AppBar position="fixed" sx={{ bgcolor: rail.main, color: rail.contrastText }}>
+          <Toolbar>
+            <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ mr: 1 }}>
+              <MenuIcon />
+            </IconButton>
+            <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 20 }}>ACME</Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        <Drawer
+          variant={isMobile ? 'temporary' : 'permanent'}
+          open={isMobile ? mobileOpen : true}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{ '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', border: 0 } }}
         >
-        <Toolbar sx={{display: 'flex', justifyContent: 'space-around'}}>
-          <Typography variant="h6" component="h1">
-            ACME 
-          </Typography>
-          {username && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 20}}>
-              <Typography variant="body2">{username} ({role})</Typography>
-            </Box>
-          )}
-          
-        </Toolbar>
-      </AppBar>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          },
-        }}
-      >
-        
-        <List sx={{paddingTop: '40px'}}>
+          {drawerContent}
+        </Drawer>
+      </Box>
 
-          <Link href="/" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <HomeIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Home" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>
-
-          <Link href="/analytics" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <AnalyticsIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Analytics" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>
-
-          <Link href="/workorders" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <SettingsIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Work Orders" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>
-
-          <Link href="/reports" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <ReportIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Diagnostic Reports" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>
-
-          {role == 'Clinical Admin' && <Link href="/users" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <PersonIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Users" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>}
-
-          {role == 'Clinical Admin' && <Link href="/deactive" sx={{ textDecoration: 'none', color: 'text.primary'}}>
-            <ListItem disablePadding>
-                <ListItemButton>
-                  <ListItemIcon>
-                    <PersonIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Deactive" />
-                </ListItemButton>            
-            </ListItem>
-          </Link>}
-
-        </List>
-
-        <List sx={{paddingBottom:'40px'}}>
-          <ListItem disablePadding>
-            <ListItemButton>
-              <Button color="inherit" onClick={handleLogout}>Log Out</Button>
-            </ListItemButton>     
-          </ListItem>
-
-        </List>
-      </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <Toolbar /> {/* spacer so content starts below the AppBar */}
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 } }}>
+        {isMobile && <Toolbar />}
         {children}
       </Box>
     </Box>

@@ -1,4 +1,4 @@
-from .enums import UserRole, TicketPriority, TicketStatus, EngineerAvailability, SeatType
+from .enums import UserRole, TicketPriority, TicketStatus, EngineerAvailability, SeatType, IssueType
 from .base import Base
 from .users import User
 from .ticket import Ticket
@@ -9,6 +9,6 @@ from .floor import Floor
 from .seat import Seat
 
 __all__ = [
-    "UserRole", "TicketPriority", "TicketStatus", "EngineerAvailability", "SeatType",
+    "UserRole", "TicketPriority", "TicketStatus", "EngineerAvailability", "SeatType", "IssueType",
     "Base", "User", "Ticket", "Note", "Engineer", "Building", "Floor", "Seat"
 ]

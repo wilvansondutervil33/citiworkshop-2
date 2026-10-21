@@ -49,6 +49,7 @@ async def update_ticket(eid:int, payload: TicketUpdate ,db: AsyncSession = Depen
     ticket.description = payload.description
     ticket.status = payload.status
     ticket.priority = payload.priority
+    ticket.issue_type = payload.issue_type
     ticket.assigned_to_id = payload.assigned_to_id
     ticket.created_by_id = payload.created_by_id
     ticket.location_id = payload.location_id

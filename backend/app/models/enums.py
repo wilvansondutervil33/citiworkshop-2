@@ -27,3 +27,11 @@ class SeatType(str, Enum):
     MEETING_ROOM = "Meeting Room"
     COMMON_AREA = "Common Area"
     OTHER = "Other"
+
+class IssueType(str, Enum):
+    SOFTWARE = "Software"
+    HARDWARE = "Hardware"
+    NETWORK = "Network"
+    PLUMBING = "Plumbing"
+    STRUCTURAL = "Structural"
+    OTHER = "Other"

@@ -41,7 +41,7 @@ function LoginForm (){
         <Box sx={{display: 'flex', justifyContent: 'center', mt: 8}}>
             <Paper component='form' onSubmit={handleSubmit} variant='outline' sx={{p:4, width: 320}}>
                 <Typography variant='h6' gutterBottom>
-                    MedFlow Login
+                    ACME Facilities Desk
                 </Typography>
                 {error && <Alert severity='error' sx={{mb:2}}>{error}</Alert>}
                 <TextField

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import apiClient from "../api/client";
 
 
@@ -28,10 +28,10 @@ export function AuthProvider ({children}){
         setToken(response.data.access_token);
     }
 
-    const logout = () =>{
+    const logout = useCallback(() =>{
         localStorage.removeItem('workToken');
         setToken(null);
-    };
+    }, []);
 
     const value = {token, user, isAuthenticated: Boolean(token), login, logout};
 
