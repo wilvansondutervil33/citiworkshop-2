@@ -39,12 +39,8 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  custom_error_response {
-    error_code            = 404
-    error_caching_min_ttl = 300
-    response_code         = 200
-    response_page_path    = "/index.html"
-  }
+  # Page routes fall back to index.html through the spa_rewrite function (spa.tf) instead of a
+  # distribution-wide custom_error_response, which would also replace API 403/404 JSON with HTML.
 
   # logging_config {
   #   include_cookies = false
@@ -96,6 +92,11 @@ resource "aws_cloudfront_distribution" "this" {
 
     target_origin_id       = local.origin_id
     viewer_protocol_policy = "redirect-to-https"
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = element(aws_cloudfront_function.spa_rewrite.*.arn, count.index)
+    }
 
     forwarded_values {
       query_string = false

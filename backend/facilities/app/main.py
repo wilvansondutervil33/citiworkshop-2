@@ -11,14 +11,15 @@ FRONTEND_ORIGIN = settings.frontend_origin
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
-    title= "Med-Flow Command Center",
-    description=" This is scound app",
+    title= "ACME Facilities Desk API",
+    description="Facility incident management for ACME employees, engineers and facility admins",
     version= "1.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins= [FRONTEND_ORIGIN, "http://localhost:3000"],
+    # On AWS the site and API share the CloudFront domain, so FRONTEND_ORIGIN is only needed locally
+    allow_origins= [origin for origin in [FRONTEND_ORIGIN, "http://localhost:3000"] if origin],
     allow_credentials= True,
     allow_methods=["*"],
     allow_headers=["*"]
