@@ -1,11 +1,11 @@
 from decimal import Decimal
 from fastapi.responses import Response
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user, require_role
-from app.models import Note, User, UserRole
+from app.models import Engineer, Note, Ticket, User, UserRole
 from app.schemas.note import NoteCreate, NoteRead, NoteUpdate
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -30,10 +30,37 @@ async def get_note(eid:int, db:AsyncSession =  Depends(get_db), _:User = Depends
                 )
     return note
 
-@router.post("", response_model=NoteCreate, status_code= status.HTTP_201_CREATED)
-async def create_note(payload: NoteCreate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Note:
-    
-    note = Note(**payload.model_dump())
+@router.post("", response_model=NoteRead, status_code= status.HTTP_201_CREATED)
+async def create_note(payload: NoteCreate ,db: AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)) -> Note:
+
+    ticket = await db.get(Ticket, payload.ticket_id)
+    if ticket is None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"Ticket {payload.ticket_id} is not found"
+                )
+
+    res = await db.execute(select(Engineer).where(Engineer.user_id == current_user.id))
+    engineer = res.scalar_one_or_none()
+
+    # Employees note their own tickets, engineers their assigned tickets, admins any ticket
+    allowed = (
+        current_user.role == UserRole.FACILITY_ADMIN
+        or (current_user.role == UserRole.EMPLOYEE and ticket.created_by_id == current_user.id)
+        or (current_user.role == UserRole.ENGINEER and engineer is not None and ticket.assigned_to_id == engineer.id)
+    )
+    if not allowed:
+        raise HTTPException(
+                    status_code= status.HTTP_403_FORBIDDEN,
+                    detail= "You can only add notes to tickets you reported or are assigned to"
+                )
+
+    note = Note(
+        ticket_id = payload.ticket_id,
+        body = payload.body,
+        author_id = current_user.id,
+        engineer_id = engineer.id if engineer else None,
+    )
     db.add(note)
     await db.commit()
     await db.refresh(note)
@@ -45,8 +72,8 @@ async def update_note(eid:int, payload: NoteUpdate ,db: AsyncSession = Depends(g
     
     note = await db.get(Note, eid)
 
-    note.name = payload.name
-    note.address = payload.address
+    note.body = payload.body
+    note.edited_at = func.now()
 
     db.add(note)
     await db.commit()

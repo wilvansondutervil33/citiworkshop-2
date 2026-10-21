@@ -15,7 +15,7 @@ function TicketsPage() {
 
   return (
     <>
-      <PageHeader title={title} subtitle={subtitle} actions={role === 'Employee' ? <ReportIssueButton /> : null} />
+      <PageHeader title={title} subtitle={subtitle} actions={<ReportIssueButton />} />
       <TicketTable title={title} tickets={scopedTickets} />
     </>
   );

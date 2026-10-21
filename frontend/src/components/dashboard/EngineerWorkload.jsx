@@ -4,7 +4,7 @@ import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import { STATUS_COLORS, isActive } from '../../utils/tickets';
 
 function EngineerWorkload() {
-  const { engineers, tickets, engineerName, buildingName } = useFacilityData();
+  const { engineers, tickets, engineerName, buildingName, buildingDepartment } = useFacilityData();
 
   const rows = engineers
     .map((engineer) => ({
@@ -25,7 +25,7 @@ function EngineerWorkload() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <Typography variant="body2">
                   {engineerName(engineer.id)}{' '}
-                  <Typography component="span" variant="caption" color="text.secondary">{buildingName(engineer.building_id)}</Typography>
+                  <Typography component="span" variant="caption" color="text.secondary">{buildingName(engineer.building_id)}{buildingDepartment(engineer.building_id) ? ` · ${buildingDepartment(engineer.building_id)}` : ''}</Typography>
                 </Typography>
                 <Chip size="small" label={`${load}/${engineer.max_workload} · ${available ? 'Available' : 'Busy'}`} sx={{ color: colors.fg, bgcolor: colors.bg, fontWeight: 500 }} />
               </Box>

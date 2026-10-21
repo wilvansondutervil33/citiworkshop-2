@@ -35,3 +35,11 @@ class IssueType(str, Enum):
     PLUMBING = "Plumbing"
     STRUCTURAL = "Structural"
     OTHER = "Other"
+
+# A building's specialty; matches IssueType values (except Other) for auto-assignment
+class Department(str, Enum):
+    SOFTWARE = "Software"
+    HARDWARE = "Hardware"
+    NETWORK = "Network"
+    PLUMBING = "Plumbing"
+    STRUCTURAL = "Structural"

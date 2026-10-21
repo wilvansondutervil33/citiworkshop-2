@@ -47,6 +47,7 @@ async def update_building(eid:int, payload: BuildingUpdate ,db: AsyncSession = D
 
     building.name = payload.name
     building.address = payload.address
+    building.department = payload.department
 
     db.add(building)
     await db.commit()

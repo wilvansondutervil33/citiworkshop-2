@@ -17,7 +17,7 @@ function DashboardPage() {
     const attention = tickets.filter((t) => t.status === 'Blocked' || (t.priority === 'Critical' && isActive(t)));
     return (
       <>
-        <PageHeader title="Operations overview" subtitle={`All buildings · ${tickets.length} tickets on record`} />
+        <PageHeader title="Operations overview" subtitle={`All buildings · ${tickets.length} tickets on record`} actions={<ReportIssueButton />} />
         <Box sx={{ display: 'grid', gap: 2 }}>
           <KpiRow tickets={tickets} />
           <WorkflowStrip tickets={tickets} />
@@ -43,7 +43,7 @@ function DashboardPage() {
           <WorkflowStrip tickets={scopedTickets} />
           <TicketFeed
             title="Latest updates"
-            subtitle="Last engineer note on each ticket"
+            subtitle="Latest note on each ticket"
             tickets={scopedTickets.filter((t) => isActive(t) || t.status === 'Resolved')}
           />
         </Box>
@@ -55,7 +55,7 @@ function DashboardPage() {
   const limit = myEngineer?.max_workload ?? 5;
   return (
     <>
-      <PageHeader title="My queue" subtitle={`${active.length} active of ${limit} slots · ${active.length < limit ? 'Available' : 'Busy'}`} />
+      <PageHeader title="My queue" subtitle={`${active.length} active of ${limit} slots · ${active.length < limit ? 'Available' : 'Busy'}`} actions={<ReportIssueButton />} />
       <Box sx={{ display: 'grid', gap: 2 }}>
         <WorkflowStrip tickets={scopedTickets} />
         <TicketFeed title="Up next" subtitle="Active tickets, critical first" tickets={active} />

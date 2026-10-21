@@ -4,9 +4,9 @@ import { StatusChip } from '../common/TicketBadges.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import { PRIORITIES, STATUS_COLORS, ticketCode } from '../../utils/tickets';
 
-// A short list of tickets with the latest engineer note on each, critical first
+// A short list of tickets with the latest note on each, critical first
 function TicketFeed({ title, subtitle, tickets }) {
-  const { notesFor, engineerName, openTicket } = useFacilityData();
+  const { notesFor, noteAuthor, openTicket } = useFacilityData();
   const rows = [...tickets].sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
 
   return (
@@ -24,7 +24,7 @@ function TicketFeed({ title, subtitle, tickets }) {
                 <StatusChip status={ticket.status} />
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {last ? `${engineerName(last.engineer_id)}: “${last.body}”` : 'No engineer note yet'}
+                {last ? `${noteAuthor(last)}: “${last.body}”` : 'No notes yet'}
               </Typography>
             </Box>
           );

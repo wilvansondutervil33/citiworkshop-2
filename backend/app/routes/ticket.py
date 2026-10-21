@@ -1,11 +1,11 @@
 from decimal import Decimal
 from fastapi.responses import Response
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user, require_role
-from app.models import Ticket, User, UserRole
+from app.models import Building, Engineer, Floor, IssueType, Seat, Ticket, TicketStatus, User, UserRole
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -30,10 +30,60 @@ async def get_ticket(eid:int, db:AsyncSession =  Depends(get_db), _:User = Depen
                 )
     return ticket
 
+ACTIVE_STATUSES = (TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.BLOCKED)
+
+async def building_for_seat(db: AsyncSession, seat_id: int) -> Building | None:
+    res = await db.execute(
+        select(Building)
+        .join(Floor, Floor.building_id == Building.id)
+        .join(Seat, Seat.floor_id == Floor.id)
+        .where(Seat.id == seat_id)
+    )
+    return res.scalar_one_or_none()
+
+def issue_type_for(building: Building | None) -> IssueType:
+    """A new ticket's issue type is the department of the building it's reported in."""
+    if building is None or building.department is None:
+        return IssueType.OTHER
+    return IssueType(building.department.value)
+
+async def pick_engineer(db: AsyncSession, building: Building | None, issue_type: IssueType) -> int | None:
+    """Least-busy engineer in the building, if the building's department matches the issue type.
+
+    Returns None (leave unassigned) for Other issues, a department mismatch, or when every
+    engineer in the building is at their max workload.
+    """
+    if issue_type == IssueType.OTHER:
+        return None
+    if building is None or building.department is None or building.department.value != issue_type.value:
+        return None
+
+    active_count = func.count(Ticket.id).filter(Ticket.status.in_(ACTIVE_STATUSES))
+    res = await db.execute(
+        select(Engineer.id, Engineer.max_workload, active_count.label("active"))
+        .outerjoin(Ticket, Ticket.assigned_to_id == Engineer.id)
+        .where(Engineer.building_id == building.id, Engineer.is_active == True)
+        .group_by(Engineer.id, Engineer.max_workload)
+        .order_by(active_count, Engineer.id)
+    )
+    for engineer_id, max_workload, active in res.all():
+        if active < max_workload:
+            return engineer_id
+    return None
+
 @router.post("", response_model=TicketCreate, status_code= status.HTTP_201_CREATED)
-async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Ticket:
-    
+async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)) -> Ticket:
+
     ticket = Ticket(**payload.model_dump())
+    # Only admins can report on someone else's behalf, pick the engineer, or set the status
+    if current_user.role != UserRole.FACILITY_ADMIN:
+        ticket.created_by_id = current_user.id
+        ticket.assigned_to_id = None
+        ticket.status = TicketStatus.OPEN
+    building = await building_for_seat(db, ticket.location_id)
+    ticket.issue_type = issue_type_for(building)
+    if ticket.assigned_to_id is None:
+        ticket.assigned_to_id = await pick_engineer(db, building, ticket.issue_type)
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
@@ -48,6 +98,13 @@ async def update_ticket(eid:int, payload: TicketUpdate ,db: AsyncSession = Depen
     ticket.title = payload.title
     ticket.description = payload.description
     ticket.status = payload.status
+    # opened_at marks when work was acknowledged (left Open); closed_at when the ticket was closed
+    if ticket.status != TicketStatus.OPEN and ticket.opened_at is None:
+        ticket.opened_at = func.now()
+    if ticket.status == TicketStatus.CLOSED and ticket.closed_at is None:
+        ticket.closed_at = func.now()
+    elif ticket.status != TicketStatus.CLOSED:
+        ticket.closed_at = None
     ticket.priority = payload.priority
     ticket.issue_type = payload.issue_type
     ticket.assigned_to_id = payload.assigned_to_id

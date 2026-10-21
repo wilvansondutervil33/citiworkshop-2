@@ -5,6 +5,7 @@ from sqlalchemy import Boolean, Integer, String, Numeric, CheckConstraint, Forei
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from .enums import Department
 
 if TYPE_CHECKING:
     from .floor import Floor
@@ -16,6 +17,14 @@ class Building(Base):
     id:Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(25))
     address: Mapped[str] = mapped_column(String(255))
+    department: Mapped[Department | None] = mapped_column(
+        SqlEnum(
+            Department,
+            name="department",
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
 

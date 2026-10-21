@@ -122,7 +122,7 @@ function NoteForm({ ticket }) {
 }
 
 function TicketDrawer() {
-  const { tickets, selectedTicketId, closeTicket, locate, usersById, engineerName, notesFor } = useFacilityData();
+  const { tickets, selectedTicketId, closeTicket, locate, usersById, engineerName, notesFor, noteAuthor, buildingDepartment, me } = useFacilityData();
   const ticket = tickets.find((t) => t.id === selectedTicketId);
 
   return (
@@ -160,7 +160,9 @@ function TicketDrawer() {
                 <Detail label="Issue type">{ticket.issue_type}</Detail>
                 <Detail label="Location">
                   {loc.buildingName}{loc.floorNumber ? ` › Floor ${loc.floorNumber}` : ''}{loc.seatType ? ` › ${loc.seatType}` : ''}
-                  <Typography variant="caption" display="block" sx={{ fontFamily: monoFont }} color="text.secondary">{loc.code}</Typography>
+                  <Typography variant="caption" display="block" sx={{ fontFamily: monoFont }} color="text.secondary">
+                    {loc.code}{buildingDepartment(loc.buildingId) ? ` · ${buildingDepartment(loc.buildingId)} department` : ''}
+                  </Typography>
                 </Detail>
                 <Detail label="Reported by">
                   {usersById[ticket.created_by_id]?.name ?? 'Unknown'}{ticket.created_at ? ` · ${formatAge(ticket.created_at)}` : ''}
@@ -178,8 +180,10 @@ function TicketDrawer() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mt: 0.5 }}>
                   {!notes.length && <Typography variant="body2" color="text.secondary">No notes yet.</Typography>}
                   {notes.map((n) => (
-                    <Box key={n.id} sx={{ borderLeft: 2, borderColor: 'divider', pl: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">{engineerName(n.engineer_id)}</Typography>
+                    <Box key={n.id} sx={{ borderLeft: 2, borderColor: n.author_id === me?.id ? 'primary.main' : 'divider', pl: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {n.author_id === me?.id ? 'You' : noteAuthor(n)} · {usersById[n.author_id]?.role ?? 'User'}
+                      </Typography>
                       <Typography variant="body2">{n.body}</Typography>
                     </Box>
                   ))}

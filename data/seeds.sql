@@ -1,9 +1,9 @@
-INSERT INTO buildings (id, name, address, is_active) VALUES
-(1, 'HQ Tower',         '100 Main Street, Springfield',   true),
-(2, 'North Campus',     '250 North Avenue, Springfield',  true),
-(3, 'Riverside Office', '12 River Road, Springfield',     true),
-(4, 'Tech Center',      '8 Innovation Way, Springfield',  true),
-(5, 'Annex West',       '77 West Boulevard, Springfield', true);
+INSERT INTO buildings (id, name, address, department, is_active) VALUES
+(1, 'HQ Tower',         '100 Main Street, Springfield',   'Software',   true),
+(2, 'North Campus',     '250 North Avenue, Springfield',  'Plumbing',   true),
+(3, 'Riverside Office', '12 River Road, Springfield',     'Hardware',   true),
+(4, 'Tech Center',      '8 Innovation Way, Springfield',  'Network',    true),
+(5, 'Annex West',       '77 West Boulevard, Springfield', 'Structural', true);
  
  
 -- -------------------------------------------------------------------------
@@ -292,17 +292,17 @@ INSERT INTO tickets (id, title, description, priority, status, issue_type, assig
 -- -------------------------------------------------------------------------
 -- Notes (written by each ticket's assigned engineer)
 -- -------------------------------------------------------------------------
-INSERT INTO notes (id, ticket_id, engineer_id, body) VALUES
-(1,  1,  1,  'On site now. Compressor fault suspected, checking the unit on the roof.'),
-(2,  1,  1,  'Replacement part ordered, temporary fan placed at your desk.'),
-(3,  3,  7,  'Access point in this room is failing. Waiting on a replacement from IT stock.'),
-(4,  3,  7,  'Replacement access point arrives Friday; ticket blocked until then.'),
-(5,  4,  3,  'Replaced the gas lift on the chair. Please confirm it is working.'),
-(6,  5,  4,  'Washer replaced and counter dried. No further leaks observed.'),
-(7,  6,  5,  'Firmware update applied to the projector, testing HDMI input now.'),
-(8,  8,  8,  'Swapped the dock power supply; monitoring for the rest of the day.'),
-(9,  9,  9,  'Replaced two faulty light ballasts. Lights are stable.'),
-(10, 10, 10, 'Will check the badge reader wiring first thing this morning.');
+INSERT INTO notes (id, ticket_id, engineer_id, author_id, body) VALUES
+(1,  1,  1,   11,  'On site now. Compressor fault suspected, checking the unit on the roof.'),
+(2,  1,  1,   11,  'Replacement part ordered, temporary fan placed at your desk.'),
+(3,  3,  7,   17,  'Access point in this room is failing. Waiting on a replacement from IT stock.'),
+(4,  3,  7,   17,  'Replacement access point arrives Friday; ticket blocked until then.'),
+(5,  4,  3,   13,  'Replaced the gas lift on the chair. Please confirm it is working.'),
+(6,  5,  4,   14,  'Washer replaced and counter dried. No further leaks observed.'),
+(7,  6,  5,   15,  'Firmware update applied to the projector, testing HDMI input now.'),
+(8,  8,  8,   18,  'Swapped the dock power supply; monitoring for the rest of the day.'),
+(9,  9,  9,   19,  'Replaced two faulty light ballasts. Lights are stable.'),
+(10, 10, 10,  20,  'Will check the badge reader wiring first thing this morning.');
  
  
 -- -------------------------------------------------------------------------

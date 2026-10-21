@@ -19,7 +19,9 @@ class Note(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     ticket_id: Mapped[int] = mapped_column(Integer, ForeignKey("tickets.id"))
-    engineer_id: Mapped[int] = mapped_column(Integer, ForeignKey("engineers.id"))
+    # The user who wrote the note; engineer_id is only set when that user is an engineer
+    author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    engineer_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("engineers.id"), nullable=True)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 from app.models import IssueType
 
@@ -16,6 +17,9 @@ class TicketCreate(TicketBase):
 
 class TicketRead(TicketBase):
     id:int
+    created_at: datetime | None = None
+    opened_at: datetime | None = None
+    closed_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

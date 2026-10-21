@@ -66,6 +66,7 @@ export function FacilityDataProvider({ children }) {
     };
 
     const buildingName = (buildingId) => buildingsById[buildingId]?.name ?? `Building ${buildingId}`;
+    const buildingDepartment = (buildingId) => buildingsById[buildingId]?.department ?? null;
 
     // Resolve a seat id into building › floor › seat, with a short code like "HT-03-024"
     const locate = (seatId) => {
@@ -84,8 +85,9 @@ export function FacilityDataProvider({ children }) {
     };
 
     const notesFor = (ticketId) => raw.notes.filter((n) => n.ticket_id === ticketId);
+    const noteAuthor = (note) => usersById[note.author_id]?.name ?? 'Unknown';
 
-    return { usersById, me, myEngineer, engineerName, buildingName, locate, notesFor };
+    return { usersById, me, myEngineer, engineerName, buildingName, buildingDepartment, locate, notesFor, noteAuthor };
   }, [raw, user]);
 
   // Tickets each role is responsible for
@@ -122,19 +124,14 @@ export function FacilityDataProvider({ children }) {
     return runAction(() => apiClient.put(`/tickets/${ticket.id}`, payload), successMessage);
   }, [runAction]);
 
-  const createTicket = useCallback((payload) => (
-    runAction(() => apiClient.post('/tickets', { status: 'Open', assigned_to_id: null, created_by_id: lookups.me?.id, ...payload }), 'Issue reported')
+  const createTicket = useCallback((payload, successMessage) => (
+    runAction(() => apiClient.post('/tickets', { status: 'Open', assigned_to_id: null, created_by_id: lookups.me?.id, ...payload }), successMessage ?? 'Issue reported')
   ), [runAction, lookups.me]);
 
-  const addNote = useCallback((ticket, body) => {
-    // The API stores notes against an engineer, so fall back to the ticket's assignee
-    const engineerId = lookups.myEngineer?.id ?? ticket.assigned_to_id;
-    if (!engineerId) {
-      notify('Assign an engineer before adding notes to this ticket.', 'error');
-      return Promise.resolve(false);
-    }
-    return runAction(() => apiClient.post('/notes', { ticket_id: ticket.id, engineer_id: engineerId, body }), 'Note posted');
-  }, [lookups.myEngineer, notify, runAction]);
+  // The API records the logged-in user as the note's author
+  const addNote = useCallback((ticket, body) => (
+    runAction(() => apiClient.post('/notes', { ticket_id: ticket.id, body }), 'Note posted')
+  ), [runAction]);
 
   const value = {
     ...raw,
