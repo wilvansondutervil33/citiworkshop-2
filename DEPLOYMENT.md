@@ -20,6 +20,13 @@ export AWS_REGION=us-east-2
 export EVENT_ID=...
 export PARTICIPANT_ID=...
 export PARTICIPANT_CODE=...
+export TF_VAR_aws_vpc_id=vpc-045fddc9fddda225f   # the "coding-workshop" VPC
+```
+
+`TF_VAR_aws_vpc_id` is required in this account: it has no default VPC, and without it Terraform stops with `no matching EC2 VPC found`. Use the VPC that contains the `coding-workshop-<id>` security group:
+
+```bash
+aws ec2 describe-security-groups --filters "Name=group-name,Values=coding-workshop-$PARTICIPANT_ID" --query 'SecurityGroups[0].VpcId' --output text
 ```
 
 Tools: `aws`, `terraform` (1.11+), `node`/`npm`, `jq`, `curl`, `dig`, Python 3.13. The scripts fetch fresh temporary AWS credentials each time they run (`bin/setup-participant.sh`).
@@ -53,7 +60,7 @@ curl https://<cloudfront-domain>/api/facilities/health          # {"status":"OK"
 aws logs tail /aws/lambda/coding-workshop-facilities-$PARTICIPANT_ID --follow
 ```
 
-The first request after the database has been idle can take ~15 seconds while Aurora resumes.
+The database pauses after 5 idle minutes. The backend retries its connection while Aurora resumes (up to 25 seconds per request, 2 minutes for `init-database.sh`), so the first request after a quiet period is slow rather than failing. CloudFront gives up after 30 seconds, so if Aurora takes longer than that the request can still fail; retry and it works.
 
 ## Tear down
 
