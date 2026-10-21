@@ -11,10 +11,12 @@ from app.schemas.building import BuildingCreate, BuildingRead, BuildingUpdate
 router = APIRouter(prefix="/buildings", tags=["buildings"])
 
 @router.get("", response_model=list[BuildingRead], status_code= status.HTTP_200_OK)
-async def get_list_buildings(db:AsyncSession =  Depends(get_db), _:User = Depends(get_current_user)) -> list[Building]:
+async def get_list_buildings(include_inactive: bool = Query(False), db:AsyncSession =  Depends(get_db), _:User = Depends(get_current_user)) -> list[Building]:
     
     statement = select(Building)
-    statement = statement.where(Building.is_active == True).order_by(Building.id)
+    if not include_inactive:
+        statement = statement.where(Building.is_active == True)
+    statement = statement.order_by(Building.id)
 
     res = await db.execute(statement)
     return list(res.scalars().all())
@@ -30,7 +32,7 @@ async def get_building(eid:int, db:AsyncSession =  Depends(get_db), _:User = Dep
                 )
     return building
 
-@router.post("", response_model=BuildingCreate, status_code= status.HTTP_201_CREATED)
+@router.post("", response_model=BuildingRead, status_code= status.HTTP_201_CREATED)
 async def create_building(payload: BuildingCreate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Building:
     
     building = Building(**payload.model_dump())
@@ -44,6 +46,11 @@ async def create_building(payload: BuildingCreate ,db: AsyncSession = Depends(ge
 async def update_building(eid:int, payload: BuildingUpdate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Building:
     
     building = await db.get(Building, eid)
+    if building == None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"Building {eid} is not found"
+                )
 
     building.name = payload.name
     building.address = payload.address

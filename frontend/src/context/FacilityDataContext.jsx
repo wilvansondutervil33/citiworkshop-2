@@ -5,6 +5,8 @@ import { useAuth } from './AuthContext.jsx';
 import { apiErrorMessage } from '../utils/tickets';
 
 const RESOURCES = ['tickets', 'engineers', 'users', 'buildings', 'floors', 'seats', 'notes'];
+// Facilities load deactivated rows too, so admins can see and reactivate them
+const INCLUDE_INACTIVE = new Set(['buildings', 'floors', 'seats']);
 
 const FacilityDataContext = createContext(null);
 
@@ -21,7 +23,7 @@ export function FacilityDataProvider({ children }) {
   const [notification, setNotification] = useState(null);
 
   const load = useCallback(async () => {
-    const results = await Promise.allSettled(RESOURCES.map((r) => apiClient.get(`/${r}`)));
+    const results = await Promise.allSettled(RESOURCES.map((r) => apiClient.get(`/${r}`, { params: INCLUDE_INACTIVE.has(r) ? { include_inactive: true } : {} })));
 
     if (results.some((r) => r.status === 'rejected' && r.reason.response?.status === 401)) {
       logout();
@@ -84,10 +86,16 @@ export function FacilityDataProvider({ children }) {
       };
     };
 
+    const activeBuildings = raw.buildings.filter((b) => b.is_active !== false);
+    const activeBuildingIds = new Set(activeBuildings.map((b) => b.id));
+    const activeFloors = raw.floors.filter((f) => f.is_active !== false && (!raw.buildings.length || activeBuildingIds.has(f.building_id)));
+    const activeFloorIds = new Set(activeFloors.map((f) => f.id));
+    const activeSeats = raw.seats.filter((s) => s.is_active !== false && activeFloorIds.has(s.floor_id));
+
     const notesFor = (ticketId) => raw.notes.filter((n) => n.ticket_id === ticketId);
     const noteAuthor = (note) => usersById[note.author_id]?.name ?? 'Unknown';
 
-    return { usersById, me, myEngineer, engineerName, buildingName, buildingDepartment, locate, notesFor, noteAuthor };
+    return { usersById, me, myEngineer, engineerName, buildingName, buildingDepartment, locate, notesFor, noteAuthor, activeBuildings, activeFloors, activeSeats };
   }, [raw, user]);
 
   // Tickets each role is responsible for
@@ -128,6 +136,79 @@ export function FacilityDataProvider({ children }) {
     runAction(() => apiClient.post('/tickets', { status: 'Open', assigned_to_id: null, created_by_id: lookups.me?.id, ...payload }), successMessage ?? 'Issue reported')
   ), [runAction, lookups.me]);
 
+  // Engineers also need an engineer profile (building + workload limit) before tickets can reach them
+  const createUser = useCallback(async ({ name, email, password, role, buildingId, maxWorkload }) => {
+    let user;
+    try {
+      ({ data: user } = await apiClient.post('/auth/register', { name, email, role, hashed_password: password }));
+    } catch (error) {
+      notify(apiErrorMessage(error), 'error');
+      return false;
+    }
+    if (role === 'Engineer') {
+      try {
+        await apiClient.post('/engineers', { user_id: user.id, building_id: Number(buildingId), max_workload: Number(maxWorkload) });
+      } catch (error) {
+        notify(`${user.name} was added, but their engineer profile failed: ${apiErrorMessage(error)}`, 'error');
+        await load();
+        return true;
+      }
+    }
+    notify(`${user.name} added`);
+    await load();
+    return true;
+  }, [load, notify]);
+
+  const createBuilding = useCallback((payload) => (
+    runAction(() => apiClient.post('/buildings', payload), `${payload.name} added`)
+  ), [runAction]);
+
+  const createFloor = useCallback((payload) => (
+    runAction(() => apiClient.post('/floors', payload), `Floor ${payload.floor_number} added`)
+  ), [runAction]);
+
+  // The API creates one seat per request, so add them in order and report how many succeeded
+  const createSeats = useCallback(async (floorId, seatType, count) => {
+    let added = 0;
+    try {
+      for (let i = 0; i < count; i += 1) {
+        await apiClient.post('/seats', { floor_id: floorId, seat_type: seatType });
+        added += 1;
+      }
+      notify(`${added} ${seatType.toLowerCase()} seat${added === 1 ? '' : 's'} added`);
+      return true;
+    } catch (error) {
+      notify(`${added} of ${count} seats added. ${apiErrorMessage(error)}`, 'error');
+      return false;
+    } finally {
+      await load();
+    }
+  }, [load, notify]);
+
+  const updateBuilding = useCallback((building, payload) => (
+    runAction(() => apiClient.put(`/buildings/${building.id}`, payload), `${payload.name} updated`)
+  ), [runAction]);
+
+  const updateFloor = useCallback((floor, payload) => (
+    runAction(() => apiClient.put(`/floors/${floor.id}`, payload), `Floor ${payload.floor_number} updated`)
+  ), [runAction]);
+
+  const updateSeat = useCallback((seat, payload) => (
+    runAction(() => apiClient.put(`/seats/${seat.id}`, payload), `Seat #${seat.id} updated`)
+  ), [runAction]);
+
+  // kind is 'buildings', 'floors' or 'seats'
+  const setFacilityActive = useCallback((kind, item, active, label) => (
+    runAction(() => apiClient.put(`/${kind}/${active ? 'active' : 'deactive'}/${item.id}`), `${label} ${active ? 'reactivated' : 'deactivated'}`)
+  ), [runAction]);
+
+  const setUserActive = useCallback((target, active) => (
+    runAction(
+      () => apiClient.put(`/users/${active ? 'active' : 'deactive'}/${target.id}`),
+      `${target.name} ${active ? 'reactivated' : 'deactivated'}`,
+    )
+  ), [runAction]);
+
   // The API records the logged-in user as the note's author
   const addNote = useCallback((ticket, body) => (
     runAction(() => apiClient.post('/notes', { ticket_id: ticket.id, body }), 'Note posted')
@@ -136,6 +217,13 @@ export function FacilityDataProvider({ children }) {
   const value = {
     ...raw,
     ...lookups,
+    // Everywhere else in the app only sees usable facilities; the Facilities page uses the all* lists
+    buildings: lookups.activeBuildings,
+    floors: lookups.activeFloors,
+    seats: lookups.activeSeats,
+    allBuildings: raw.buildings,
+    allFloors: raw.floors,
+    allSeats: raw.seats,
     role: user?.role,
     loading,
     failed,
@@ -145,6 +233,15 @@ export function FacilityDataProvider({ children }) {
     updateTicket,
     createTicket,
     addNote,
+    setUserActive,
+    createUser,
+    createBuilding,
+    createFloor,
+    createSeats,
+    updateBuilding,
+    updateFloor,
+    updateSeat,
+    setFacilityActive,
     selectedTicketId,
     openTicket: setSelectedTicketId,
     closeTicket: () => setSelectedTicketId(null),

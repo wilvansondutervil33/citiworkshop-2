@@ -17,6 +17,8 @@ function LoginForm (){
         } catch (e){
             if (e.response?.status === 401){
                 setError('Incorrect Email or password')
+            }else if (e.response?.status === 403){
+                setError(e.response.data?.detail ?? 'This account has been deactivated.')
             }else{
                 setError('Something when wrong')
                 console.log(e)

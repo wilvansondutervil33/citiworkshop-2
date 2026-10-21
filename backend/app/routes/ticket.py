@@ -61,8 +61,9 @@ async def pick_engineer(db: AsyncSession, building: Building | None, issue_type:
     active_count = func.count(Ticket.id).filter(Ticket.status.in_(ACTIVE_STATUSES))
     res = await db.execute(
         select(Engineer.id, Engineer.max_workload, active_count.label("active"))
+        .join(User, User.id == Engineer.user_id)
         .outerjoin(Ticket, Ticket.assigned_to_id == Engineer.id)
-        .where(Engineer.building_id == building.id, Engineer.is_active == True)
+        .where(Engineer.building_id == building.id, Engineer.is_active == True, User.is_active == True)
         .group_by(Engineer.id, Engineer.max_workload)
         .order_by(active_count, Engineer.id)
     )
@@ -80,7 +81,14 @@ async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db
         ticket.created_by_id = current_user.id
         ticket.assigned_to_id = None
         ticket.status = TicketStatus.OPEN
+    seat = await db.get(Seat, ticket.location_id)
+    floor = await db.get(Floor, seat.floor_id) if seat else None
     building = await building_for_seat(db, ticket.location_id)
+    if not (seat and seat.is_active and floor and floor.is_active and building and building.is_active):
+        raise HTTPException(
+                    status_code= status.HTTP_400_BAD_REQUEST,
+                    detail= "That seat doesn't exist or has been deactivated. Pick another location."
+                )
     ticket.issue_type = issue_type_for(building)
     if ticket.assigned_to_id is None:
         ticket.assigned_to_id = await pick_engineer(db, building, ticket.issue_type)

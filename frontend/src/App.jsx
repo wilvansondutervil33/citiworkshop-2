@@ -1,5 +1,5 @@
-import { Alert, CssBaseline, LinearProgress, ThemeProvider, Typography } from '@mui/material';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Alert, CssBaseline, LinearProgress, ThemeProvider } from '@mui/material';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import LoginForm from './components/auth/LoginForm.jsx';
 import AppHeader from './components/layout/AppHeader.jsx';
@@ -9,11 +9,14 @@ import { FacilityDataProvider, useFacilityData } from './context/FacilityDataCon
 import DashboardPage from './pages/DashboardPage.jsx';
 import TicketsPage from './pages/TicketsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import UsersPage from './pages/UsersPage.jsx';
+import FacilitiesPage from './pages/FacilitiesPage.jsx';
+import NotFoundPage from './pages/NotFoundPage.jsx';
 import theme from './theme';
 
 
 function AppRoutes() {
-  const { loading, failed } = useFacilityData();
+  const { loading, failed, role } = useFacilityData();
 
   if (loading) return <LinearProgress />;
 
@@ -28,7 +31,9 @@ function AppRoutes() {
         <Route path='/' element={<DashboardPage />} />
         <Route path='/tickets' element={<TicketsPage />} />
         <Route path='/analytics' element={<AnalyticsPage />} />
-        <Route path='*' element={<Typography variant="h5" component="h2">Page not found</Typography>} />
+        <Route path='/facilities' element={role === 'Facility Admin' ? <FacilitiesPage /> : <Navigate to='/' replace />} />
+        <Route path='/users' element={role === 'Facility Admin' ? <UsersPage /> : <Navigate to='/' replace />} />
+        <Route path='*' element={<NotFoundPage />} />
       </Routes>
     </>
   );

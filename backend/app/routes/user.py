@@ -41,20 +41,35 @@ async def update_user(uid:int, payload: UserUpdate ,db: AsyncSession = Depends(g
     await db.refresh(user)
     return user
 
-@router.put("/deactive/{uid}",  status_code= status.HTTP_202_ACCEPTED)
-async def deactive_user(uid:int, db:AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))):
+@router.put("/deactive/{uid}", response_model=UserRead, status_code= status.HTTP_202_ACCEPTED)
+async def deactive_user(uid:int, db:AsyncSession = Depends(get_db), current_user:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> User:
 
+    if uid == current_user.id:
+        raise HTTPException(
+                    status_code= status.HTTP_400_BAD_REQUEST,
+                    detail= "You can't deactivate your own account"
+                )
     user = await db.get(User, uid)
+    if user == None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"User {uid} is not found"
+                )
     user.is_active = False
     db.add(user)
     await db.commit()
     await db.refresh(user)
     return user
 
-@router.put("/active/{uid}",  status_code= status.HTTP_202_ACCEPTED)
-async def active_user(uid:int, db:AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))):
+@router.put("/active/{uid}", response_model=UserRead, status_code= status.HTTP_202_ACCEPTED)
+async def active_user(uid:int, db:AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> User:
 
     user = await db.get(User, uid)
+    if user == None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"User {uid} is not found"
+                )
     user.is_active = True
     db.add(user)
     await db.commit()

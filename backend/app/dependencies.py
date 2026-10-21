@@ -38,7 +38,7 @@ async def get_current_user(
 
     res = await db.execute(select(User).where(User.email == username))
     user = res.scalar_one_or_none()
-    if user is None:
+    if user is None or not user.is_active:
         raise cred_exception
 
     return user

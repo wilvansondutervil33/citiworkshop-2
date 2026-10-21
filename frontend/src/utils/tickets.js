@@ -77,6 +77,8 @@ export function apiErrorMessage(error) {
   if (status === 401) return 'Your session has expired. Log in again.';
   const detail = error.response?.data?.detail;
   if (typeof detail === 'string' && !detail.startsWith('Role ')) return detail;
+  // FastAPI validation errors arrive as a list of { msg } objects
+  if (Array.isArray(detail) && detail.length) return detail.map((d) => d.msg.replace(/^Value error, /, '')).join('. ');
   if (status === 403) return 'Your role is not allowed to make this change. Ask a facility admin.';
   return error.message || 'The request failed. Check that the API is running and try again.';
 }

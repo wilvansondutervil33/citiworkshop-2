@@ -1,20 +1,22 @@
 from decimal import Decimal
 from fastapi.responses import Response
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user, require_role
-from app.models import Floor, User, UserRole
+from app.models import Floor, Seat, User, UserRole
 from app.schemas.floor import FloorCreate, FloorRead, FloorUpdate
 
 router = APIRouter(prefix="/floors", tags=["floors"])
 
 @router.get("", response_model=list[FloorRead], status_code= status.HTTP_200_OK)
-async def get_list_floors(db:AsyncSession =  Depends(get_db), _:User = Depends(get_current_user)) -> list[Floor]:
+async def get_list_floors(include_inactive: bool = Query(False), db:AsyncSession =  Depends(get_db), _:User = Depends(get_current_user)) -> list[Floor]:
     
     statement = select(Floor)
-    statement = statement.where(Floor.is_active == True).order_by(Floor.id)
+    if not include_inactive:
+        statement = statement.where(Floor.is_active == True)
+    statement = statement.order_by(Floor.id)
 
     res = await db.execute(statement)
     return list(res.scalars().all())
@@ -30,9 +32,17 @@ async def get_floor(eid:int, db:AsyncSession =  Depends(get_db), _:User = Depend
                 )
     return floor
 
-@router.post("", response_model=FloorCreate, status_code= status.HTTP_201_CREATED)
+@router.post("", response_model=FloorRead, status_code= status.HTTP_201_CREATED)
 async def create_floor(payload: FloorCreate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Floor:
     
+    existing = await db.execute(
+        select(Floor).where(Floor.building_id == payload.building_id, Floor.floor_number == payload.floor_number, Floor.is_active == True)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+                    status_code= status.HTTP_400_BAD_REQUEST,
+                    detail= f"Floor {payload.floor_number} already exists in this building"
+                )
     floor = Floor(**payload.model_dump())
     db.add(floor)
     await db.commit()
@@ -44,6 +54,27 @@ async def create_floor(payload: FloorCreate ,db: AsyncSession = Depends(get_db),
 async def update_floor(eid:int, payload: FloorUpdate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Floor:
     
     floor = await db.get(Floor, eid)
+    if floor == None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"Floor {eid} is not found"
+                )
+    existing = await db.execute(
+        select(Floor).where(Floor.building_id == payload.building_id, Floor.floor_number == payload.floor_number,
+                            Floor.is_active == True, Floor.id != eid)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+                    status_code= status.HTTP_400_BAD_REQUEST,
+                    detail= f"Floor {payload.floor_number} already exists in this building"
+                )
+    res = await db.execute(select(func.count(Seat.id)).where(Seat.floor_id == eid, Seat.is_active == True))
+    seat_count = res.scalar_one()
+    if payload.capacity < seat_count:
+        raise HTTPException(
+                    status_code= status.HTTP_400_BAD_REQUEST,
+                    detail= f"Capacity can't be below the {seat_count} active seats on this floor"
+                )
 
     floor.building_id = payload.building_id
     floor.floor_number = payload.floor_number

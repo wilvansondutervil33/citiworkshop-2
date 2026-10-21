@@ -6,6 +6,8 @@ import { useTheme } from '@mui/material/styles';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import { Analytics as AnalyticsIcon } from '@mui/icons-material';
+import PeopleIcon from '@mui/icons-material/People';
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +20,8 @@ const NAV_ITEMS = [
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { label: 'Tickets', path: '/tickets', icon: <ConfirmationNumberIcon /> },
   { label: 'Analytics', path: '/analytics', icon: <AnalyticsIcon /> },
+  { label: 'Facilities', path: '/facilities', icon: <ApartmentIcon />, adminOnly: true },
+  { label: 'Users', path: '/users', icon: <PeopleIcon />, adminOnly: true },
 ];
 
 function AppHeader({ username, role, onLogout, children }) {
@@ -48,7 +52,7 @@ function AppHeader({ username, role, onLogout, children }) {
 
       <Typography variant="overline" sx={{ color: rail.muted, px: 1, mt: 3 }}>Workspace</Typography>
       <List dense disablePadding>
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.adminOnly || role === 'Facility Admin').map((item) => {
           const selected = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
           return (
             <ListItem key={item.path} disablePadding>
