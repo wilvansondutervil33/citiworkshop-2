@@ -4,10 +4,15 @@ import { StatusChip } from '../common/TicketBadges.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import { PRIORITIES, STATUS_COLORS, ticketCode } from '../../utils/tickets';
 
-// A short list of tickets with the latest note on each, critical first
-function TicketFeed({ title, subtitle, tickets }) {
+// A short list of tickets with the latest note on each: critical first, then the longest-waiting.
+// With `limit`, only the first few are listed and the rest are counted.
+function TicketFeed({ title, subtitle, tickets, limit }) {
   const { notesFor, noteAuthor, openTicket } = useFacilityData();
-  const rows = [...tickets].sort((a, b) => PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority));
+  const sorted = [...tickets].sort((a, b) => (
+    PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority)
+    || new Date(a.created_at ?? 0) - new Date(b.created_at ?? 0)
+  ));
+  const rows = limit ? sorted.slice(0, limit) : sorted;
 
   return (
     <Panel title={title} subtitle={subtitle}>
@@ -29,6 +34,11 @@ function TicketFeed({ title, subtitle, tickets }) {
             </Box>
           );
         })}
+        {sorted.length > rows.length && (
+          <Typography variant="caption" color="text.secondary">
+            Showing the top {rows.length} of {sorted.length}
+          </Typography>
+        )}
       </Box>
     </Panel>
   );

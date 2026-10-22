@@ -1,24 +1,46 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Box, Chip, Link, Typography } from '@mui/material';
 import Panel from '../common/Panel.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import { STATUS_COLORS, isActive } from '../../utils/tickets';
 
+// Lists engineers who can still take tickets (most free slots first); full ones are hidden
+// behind "Show all" so it's easy to see who to assign work to
 function EngineerWorkload() {
   const { engineers, tickets, engineerName, buildingName, buildingDepartment } = useFacilityData();
+  const [showAll, setShowAll] = useState(false);
 
   const rows = engineers
-    .map((engineer) => ({
-      engineer,
-      load: tickets.filter((t) => t.assigned_to_id === engineer.id && isActive(t)).length,
-    }))
-    .sort((a, b) => b.load - a.load);
+    .map((engineer) => {
+      const load = tickets.filter((t) => t.assigned_to_id === engineer.id && isActive(t)).length;
+      return { engineer, load, free: engineer.max_workload - load };
+    })
+    .sort((a, b) => b.free - a.free || a.engineer.id - b.engineer.id);
+
+  const withRoom = rows.filter((r) => r.free > 0);
+  const atCapacity = rows.length - withRoom.length;
+  const shown = showAll ? rows : withRoom;
+
+  let summary = 'No engineer profiles yet.';
+  if (rows.length) {
+    summary = withRoom.length
+      ? `${withRoom.length} of ${rows.length} engineers can take more tickets${atCapacity ? ` · ${atCapacity} at capacity` : ''}`
+      : `All ${rows.length} engineers are at capacity. New tickets stay unassigned until someone frees up.`;
+  }
 
   return (
-    <Panel title="Engineer workload" subtitle="Active tickets against each engineer's limit">
-      {!rows.length && <Typography variant="body2" color="text.secondary">No engineer profiles yet.</Typography>}
+    <Panel title="Engineer workload" subtitle={showAll ? 'All engineers' : 'Engineers with room for more tickets'}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 1, mb: 1.5 }}>
+        <Typography variant="body2" color="text.secondary">{summary}</Typography>
+        {atCapacity > 0 && (
+          <Link component="button" type="button" variant="body2" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? 'Show only engineers with room' : 'Show all'}
+          </Link>
+        )}
+      </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-        {rows.map(({ engineer, load }) => {
-          const available = load < engineer.max_workload;
+        {shown.map(({ engineer, load, free }) => {
+          const available = free > 0;
           const colors = available ? STATUS_COLORS.Resolved : STATUS_COLORS['In-Progress'];
           return (
             <Box key={engineer.id}>
@@ -27,7 +49,11 @@ function EngineerWorkload() {
                   {engineerName(engineer.id)}{' '}
                   <Typography component="span" variant="caption" color="text.secondary">{buildingName(engineer.building_id)}{buildingDepartment(engineer.building_id) ? ` · ${buildingDepartment(engineer.building_id)}` : ''}</Typography>
                 </Typography>
-                <Chip size="small" label={`${load}/${engineer.max_workload} · ${available ? 'Available' : 'Busy'}`} sx={{ color: colors.fg, bgcolor: colors.bg, fontWeight: 500 }} />
+                <Chip
+                  size="small"
+                  label={available ? `${free} free · ${load}/${engineer.max_workload}` : `Full · ${load}/${engineer.max_workload}`}
+                  sx={{ color: colors.fg, bgcolor: colors.bg, fontWeight: 500 }}
+                />
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${engineer.max_workload}, 1fr)`, gap: '3px' }}>
                 {Array.from({ length: engineer.max_workload }, (_, i) => (

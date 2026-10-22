@@ -7,8 +7,9 @@ from .engineer import Engineer
 from .building import Building
 from .floor import Floor
 from .seat import Seat
+from .notification import Notification, EmailOutbox
 
 __all__ = [
     "UserRole", "TicketPriority", "TicketStatus", "EngineerAvailability", "SeatType", "IssueType", "Department",
-    "Base", "User", "Ticket", "Note", "Engineer", "Building", "Floor", "Seat"
+    "Base", "User", "Ticket", "Note", "Engineer", "Building", "Floor", "Seat", "Notification", "EmailOutbox"
 ]

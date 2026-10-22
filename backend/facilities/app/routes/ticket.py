@@ -5,8 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user, require_role
-from app.models import Building, Engineer, Floor, IssueType, Seat, Ticket, TicketStatus, User, UserRole
-from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
+from app.models import Building, Engineer, Floor, IssueType, Seat, Ticket, TicketPriority, TicketStatus, User, UserRole
+from app.schemas.ticket import TicketCreate, TicketRead, TicketStatusUpdate, TicketUpdate
+from app.notifications import notify_ticket_watchers
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -31,6 +32,40 @@ async def get_ticket(eid:int, db:AsyncSession =  Depends(get_db), _:User = Depen
     return ticket
 
 ACTIVE_STATUSES = (TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.BLOCKED)
+
+def status_label(value) -> str:
+    value = getattr(value, "value", value)
+    return "In Progress" if value == "In-Progress" else value
+
+def apply_status(ticket: Ticket, new_status: TicketStatus) -> None:
+    """Sets the status and keeps the timestamps in step: opened_at marks when work was
+    acknowledged (first left Open); closed_at is set when closed and cleared on reopen."""
+    ticket.status = new_status
+    if new_status != TicketStatus.OPEN and ticket.opened_at is None:
+        ticket.opened_at = func.now()
+    if new_status == TicketStatus.CLOSED and ticket.closed_at is None:
+        ticket.closed_at = func.now()
+    elif new_status != TicketStatus.CLOSED:
+        ticket.closed_at = None
+
+# New tickets get a priority from how long their issue type usually takes to close
+LOW_PRIORITY_MAX_DAYS = 2      # under 2 days on average -> Low
+MEDIUM_PRIORITY_MAX_DAYS = 3   # 2 to 3 days -> Medium; longer -> Critical
+
+def priority_for_days(average_days: float | None) -> TicketPriority:
+    if average_days is None or average_days < LOW_PRIORITY_MAX_DAYS:
+        return TicketPriority.LOW  # includes issue types with no closed tickets yet
+    if average_days <= MEDIUM_PRIORITY_MAX_DAYS:
+        return TicketPriority.MEDIUM
+    return TicketPriority.CRITICAL
+
+async def priority_for(db: AsyncSession, issue_type: IssueType) -> TicketPriority:
+    res = await db.execute(
+        select(func.avg(func.extract("epoch", Ticket.closed_at - Ticket.created_at)))
+        .where(Ticket.issue_type == issue_type, Ticket.closed_at.is_not(None), Ticket.created_at.is_not(None))
+    )
+    seconds = res.scalar_one_or_none()
+    return priority_for_days(float(seconds) / 86400 if seconds is not None else None)
 
 async def building_for_seat(db: AsyncSession, seat_id: int) -> Building | None:
     res = await db.execute(
@@ -89,7 +124,11 @@ async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db
                     status_code= status.HTTP_400_BAD_REQUEST,
                     detail= "That seat doesn't exist or has been deactivated. Pick another location."
                 )
-    ticket.issue_type = issue_type_for(building)
+    # The reporter's issue type if they chose one, otherwise the building's department.
+    # Engineers are only auto-assigned when it matches the building's department.
+    if "issue_type" not in payload.model_fields_set:
+        ticket.issue_type = issue_type_for(building)
+    ticket.priority = await priority_for(db, ticket.issue_type)
     if ticket.assigned_to_id is None:
         ticket.assigned_to_id = await pick_engineer(db, building, ticket.issue_type)
     db.add(ticket)
@@ -99,29 +138,82 @@ async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db
     return ticket
 
 @router.put("/{eid}", response_model=TicketUpdate, status_code= status.HTTP_202_ACCEPTED)
-async def update_ticket(eid:int, payload: TicketUpdate ,db: AsyncSession = Depends(get_db), _:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Ticket:
+async def update_ticket(eid:int, payload: TicketUpdate ,db: AsyncSession = Depends(get_db), current_user:User = Depends(require_role(UserRole.FACILITY_ADMIN))) -> Ticket:
     
     ticket = await db.get(Ticket, eid)
+    if ticket is None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"Ticket {eid} is not found"
+                )
+    old_status = TicketStatus(ticket.status)
 
     ticket.title = payload.title
     ticket.description = payload.description
-    ticket.status = payload.status
-    # opened_at marks when work was acknowledged (left Open); closed_at when the ticket was closed
-    if ticket.status != TicketStatus.OPEN and ticket.opened_at is None:
-        ticket.opened_at = func.now()
-    if ticket.status == TicketStatus.CLOSED and ticket.closed_at is None:
-        ticket.closed_at = func.now()
-    elif ticket.status != TicketStatus.CLOSED:
-        ticket.closed_at = None
+    apply_status(ticket, TicketStatus(payload.status))
     ticket.priority = payload.priority
     ticket.issue_type = payload.issue_type
     ticket.assigned_to_id = payload.assigned_to_id
     ticket.created_by_id = payload.created_by_id
     ticket.location_id = payload.location_id
 
+    if ticket.status != old_status:
+        await notify_ticket_watchers(db, ticket, current_user, "status", f"status changed to {status_label(ticket.status)}")
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
+    return ticket
+
+# Status moves an assigned engineer may make (matches the buttons in the app)
+ENGINEER_STATUS_MOVES = {
+    TicketStatus.OPEN: {TicketStatus.IN_PROGRESS},
+    TicketStatus.IN_PROGRESS: {TicketStatus.BLOCKED, TicketStatus.RESOLVED},
+    TicketStatus.BLOCKED: {TicketStatus.IN_PROGRESS},
+}
+# The reporter can confirm a fix (close) or say it's still broken (reopen)
+REPORTER_STATUS_MOVES = {
+    TicketStatus.RESOLVED: {TicketStatus.CLOSED, TicketStatus.IN_PROGRESS},
+}
+
+@router.put("/{eid}/status", response_model=TicketRead, status_code= status.HTTP_202_ACCEPTED)
+async def update_ticket_status(eid:int, payload: TicketStatusUpdate, db: AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)) -> Ticket:
+    """Change only the status. Admins: any status; the assigned engineer and the reporter: their usual moves."""
+    ticket = await db.get(Ticket, eid)
+    if ticket is None:
+        raise HTTPException(
+                    status_code= status.HTTP_404_NOT_FOUND,
+                    detail= f"Ticket {eid} is not found"
+                )
+    current = TicketStatus(ticket.status)
+    new = payload.status
+
+    if current_user.role != UserRole.FACILITY_ADMIN:
+        res = await db.execute(select(Engineer).where(Engineer.user_id == current_user.id))
+        engineer = res.scalar_one_or_none()
+        is_assigned = engineer is not None and ticket.assigned_to_id == engineer.id
+        is_reporter = ticket.created_by_id == current_user.id
+        if not (is_assigned or is_reporter):
+            raise HTTPException(
+                        status_code= status.HTTP_403_FORBIDDEN,
+                        detail= "You can only change the status of tickets you reported or are assigned to"
+                    )
+        allowed = set()
+        if is_assigned:
+            allowed |= ENGINEER_STATUS_MOVES.get(current, set())
+        if is_reporter:
+            allowed |= REPORTER_STATUS_MOVES.get(current, set())
+        if new not in allowed:
+            raise HTTPException(
+                        status_code= status.HTTP_400_BAD_REQUEST,
+                        detail= f"A ticket can't be moved from {status_label(current)} to {status_label(new)} by you"
+                    )
+
+    if new != current:
+        apply_status(ticket, new)
+        await notify_ticket_watchers(db, ticket, current_user, "status", f"status changed to {status_label(new)}")
+        db.add(ticket)
+        await db.commit()
+        await db.refresh(ticket)
     return ticket
 
 @router.put("/deactive/{eid}",  status_code= status.HTTP_202_ACCEPTED)

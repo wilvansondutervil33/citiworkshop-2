@@ -1,3 +1,8 @@
+from datetime import datetime
+
+from app.routes.ticket import priority_for_days
+
+
 def update_payload(ticket, **changes):
     fields = ["title", "description", "status", "priority", "issue_type", "assigned_to_id", "created_by_id", "location_id"]
     return {**{f: ticket[f] for f in fields}, **changes}
@@ -28,10 +33,60 @@ def test_missing_ticket_is_404(client, admin):
 
 # --- Creating tickets ------------------------------------------------------
 
-def test_issue_type_comes_from_the_building_department(client, employee, make):
+def test_issue_type_defaults_to_the_building_department(client, employee, make):
     _, _, seat = make.location(department="Plumbing")
-    ticket = make.ticket(employee, seat["id"], issue_type="Software")
+    ticket = make.ticket(employee, seat["id"])
     assert ticket["issue_type"] == "Plumbing"
+
+
+def test_chosen_issue_type_is_kept_but_only_matching_types_auto_assign(client, employee, make):
+    building, _, seat = make.location(department="Plumbing")
+    make.engineer(building["id"])
+
+    matching = make.ticket(employee, seat["id"], issue_type="Plumbing")
+    different = make.ticket(employee, seat["id"], issue_type="Software")
+
+    assert matching["assigned_to_id"] is not None
+    assert different["issue_type"] == "Software"
+    assert different["assigned_to_id"] is None
+
+
+# --- Priority from resolution history ---------------------------------------
+
+def test_priority_thresholds():
+    assert priority_for_days(None) == "Low"       # no closed tickets yet
+    assert priority_for_days(0.5) == "Low"
+    assert priority_for_days(1.9) == "Low"
+    assert priority_for_days(2.0) == "Medium"
+    assert priority_for_days(3.0) == "Medium"
+    assert priority_for_days(3.1) == "Critical"
+    assert priority_for_days(10) == "Critical"
+
+
+def test_new_ticket_priority_follows_its_issue_type_history(client, admin, employee, make):
+    def expected(issue_type):
+        closed = [t for t in client.get("/tickets", headers=admin).json()
+                  if t["issue_type"] == issue_type and t["closed_at"] and t["created_at"]]
+        if not closed:
+            return priority_for_days(None)
+        spans = [(datetime.fromisoformat(t["closed_at"]) - datetime.fromisoformat(t["created_at"])).total_seconds() for t in closed]
+        return priority_for_days(sum(spans) / len(spans) / 86400)
+
+    _, _, seat = make.location(department="Structural")
+    for issue_type in ("Structural", "Network", "Plumbing"):
+        want = expected(issue_type)
+        # The requested priority is ignored; it comes from history
+        ticket = make.ticket(employee, seat["id"], issue_type=issue_type, priority="Critical" if want != "Critical" else "Low")
+        assert ticket["priority"] == want, issue_type
+
+
+def test_priority_can_be_left_out_when_creating(client, employee, make):
+    _, _, seat = make.location()
+    response = client.post("/tickets", headers=employee, json={
+        "title": "No priority", "description": "x", "status": "Open", "created_by_id": 2, "location_id": seat["id"],
+    })
+    assert response.status_code == 201
+    assert response.json()["priority"] in {"Low", "Medium", "Critical"}
 
 
 def test_building_without_department_logs_other_and_stays_unassigned(client, employee, make):

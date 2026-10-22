@@ -21,7 +21,7 @@ function Detail({ label, children }) {
 }
 
 function RoleControls({ ticket }) {
-  const { role, engineers, engineerName, buildingName, updateTicket } = useFacilityData();
+  const { role, engineers, engineerName, engineerEmail, buildingName, updateTicket, setTicketStatus } = useFacilityData();
 
   if (role === 'Facility Admin') {
     return (
@@ -29,13 +29,21 @@ function RoleControls({ ticket }) {
         <TextField
           id="drawer-assignee" select size="small" label="Assigned engineer"
           value={ticket.assigned_to_id ?? ''}
+          slotProps={{ select: { renderValue: (id) => (id === '' ? 'Unassigned' : `${engineerName(id)} · ${buildingName(engineers.find((e) => e.id === id)?.building_id)}`), displayEmpty: true } }}
           onChange={(e) => {
             const id = e.target.value === '' ? null : Number(e.target.value);
             updateTicket(ticket, { assigned_to_id: id }, id ? `Assigned to ${engineerName(id)}` : 'Assignment removed');
           }}
         >
           <MenuItem value="">Unassigned</MenuItem>
-          {engineers.map((e) => <MenuItem key={e.id} value={e.id}>{engineerName(e.id)} · {buildingName(e.building_id)}</MenuItem>)}
+          {engineers.map((e) => (
+            <MenuItem key={e.id} value={e.id} sx={{ display: 'block' }}>
+              {engineerName(e.id)} · {buildingName(e.building_id)}
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontFamily: monoFont }}>
+                {engineerEmail(e.id)}
+              </Typography>
+            </MenuItem>
+          ))}
         </TextField>
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
           <TextField
@@ -70,7 +78,7 @@ function RoleControls({ ticket }) {
         <Typography variant="overline" color="text.secondary">Move ticket to</Typography>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
           {next.map((s) => (
-            <Button key={s} variant="outlined" onClick={() => updateTicket(ticket, { status: s }, `Moved to ${statusLabel(s)}`)}>
+            <Button key={s} variant="outlined" onClick={() => setTicketStatus(ticket, s, `Moved to ${statusLabel(s)}`)}>
               {statusLabel(s)}
             </Button>
           ))}
@@ -82,8 +90,8 @@ function RoleControls({ ticket }) {
   if (ticket.status === 'Resolved') {
     return (
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <Button variant="contained" onClick={() => updateTicket(ticket, { status: 'Closed' }, 'Ticket closed')}>Confirm fixed and close</Button>
-        <Button variant="outlined" onClick={() => updateTicket(ticket, { status: 'In-Progress' }, 'Ticket reopened')}>Still broken, reopen</Button>
+        <Button variant="contained" onClick={() => setTicketStatus(ticket, 'Closed', 'Ticket closed')}>Confirm fixed and close</Button>
+        <Button variant="outlined" onClick={() => setTicketStatus(ticket, 'In-Progress', 'Ticket reopened')}>Still broken, reopen</Button>
       </Box>
     );
   }
@@ -122,7 +130,7 @@ function NoteForm({ ticket }) {
 }
 
 function TicketDrawer() {
-  const { tickets, selectedTicketId, closeTicket, locate, usersById, engineerName, notesFor, noteAuthor, buildingDepartment, me } = useFacilityData();
+  const { tickets, selectedTicketId, closeTicket, locate, usersById, engineerName, engineerEmail, notesFor, noteAuthor, buildingDepartment, me } = useFacilityData();
   const ticket = tickets.find((t) => t.id === selectedTicketId);
 
   return (
@@ -169,6 +177,11 @@ function TicketDrawer() {
                 </Detail>
                 <Detail label="Engineer">
                   {engineerName(ticket.assigned_to_id) ?? <Typography component="span" variant="body2" color="error">Unassigned</Typography>}
+                  {engineerEmail(ticket.assigned_to_id) && (
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ fontFamily: monoFont }}>
+                      {engineerEmail(ticket.assigned_to_id)}
+                    </Typography>
+                  )}
                 </Detail>
                 <Detail label="Description">{ticket.description}</Detail>
               </Box>

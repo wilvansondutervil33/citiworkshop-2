@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user, require_role
 from app.models import Engineer, Note, Ticket, User, UserRole
+from app.notifications import notify_ticket_watchers
 from app.schemas.note import NoteCreate, NoteRead, NoteUpdate
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -62,6 +63,8 @@ async def create_note(payload: NoteCreate ,db: AsyncSession = Depends(get_db), c
         engineer_id = engineer.id if engineer else None,
     )
     db.add(note)
+    excerpt = payload.body if len(payload.body) <= 80 else payload.body[:77].rstrip() + "..."
+    await notify_ticket_watchers(db, ticket, current_user, "note", f'{current_user.name} added a note: "{excerpt}"')
     await db.commit()
     await db.refresh(note)
 

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Box, Chip, InputAdornment, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography,
+  Box, Button, Chip, InputAdornment, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 import Panel from '../common/Panel.jsx';
 import SearchSelect from '../common/SearchSelect.jsx';
 import { PriorityLabel, StatusChip } from '../common/TicketBadges.jsx';
@@ -12,21 +13,21 @@ import { ISSUE_TYPES, PRIORITIES, STATUSES, formatAge, statusLabel, ticketCode }
 import { monoFont } from '../../theme';
 
 const PAGE_SIZE = 50;
-const DAY_MS = 24 * 60 * 60 * 1000;
-const CREATED_RANGES = [
-  { days: 7, label: 'Last 7 days' },
-  { days: 30, label: 'Last 30 days' },
-  { days: 60, label: 'Last 60 days' },
-];
+// Today's date as YYYY-MM-DD in the viewer's timezone, the format date inputs use
+const todayInput = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 function TicketTable({ title, tickets }) {
-  const { role, usersById, locate, engineerName, openTicket, buildingName, floors } = useFacilityData();
+  const { role, usersById, locate, engineerName, engineerEmail, openTicket, buildingName, floors } = useFacilityData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [priority, setPriority] = useState('');
   const [building, setBuilding] = useState('');
   const [issueType, setIssueType] = useState('');
-  const [createdWithin, setCreatedWithin] = useState('');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
   const [page, setPage] = useState(0);
 
   // Any filter change goes back to the first page of results
@@ -38,6 +39,17 @@ function TicketTable({ title, tickets }) {
   const status = searchParams.get('status') ?? '';
   const setStatus = withPageReset((value) => setSearchParams(value ? { status: value } : {}));
 
+  const hasFilters = Boolean(query || priority || issueType || building || createdFrom || createdTo || status);
+  const clearFilters = () => {
+    setQuery('');
+    setPriority('');
+    setIssueType('');
+    setBuilding('');
+    setCreatedFrom('');
+    setCreatedTo('');
+    setStatus('');
+  };
+
   const isAdmin = role === 'Facility Admin';
   const isEngineer = role === 'Engineer';
   const showRaised = tickets.some((t) => t.created_at);
@@ -45,21 +57,23 @@ function TicketTable({ title, tickets }) {
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: buildingName(id) }));
 
-  // Tickets created on or after this moment pass the "Created" filter
-  const createdSince = createdWithin ? new Date(Date.now() - Number(createdWithin) * DAY_MS) : null;
+  // "Created from" / "Created to" include the whole of both days, in the viewer's local time
+  const createdSince = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
+  const createdUntil = createdTo ? new Date(`${createdTo}T23:59:59.999`) : null;
 
   const rows = tickets.filter((t) => {
     if (status && t.status !== status) return false;
     if (priority && t.priority !== priority) return false;
     if (issueType && t.issue_type !== issueType) return false;
-    if (createdWithin && !(t.created_at && new Date(t.created_at) >= createdSince)) return false;
+    if (createdSince && !(t.created_at && new Date(t.created_at) >= createdSince)) return false;
+    if (createdUntil && !(t.created_at && new Date(t.created_at) <= createdUntil)) return false;
     const loc = locate(t.location_id);
     if (building && loc.buildingId !== Number(building)) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     const haystack = [
       ticketCode(t.id), t.title, t.description, t.issue_type, loc.buildingName, loc.code,
-      usersById[t.created_by_id]?.name, engineerName(t.assigned_to_id) ?? 'unassigned',
+      usersById[t.created_by_id]?.name, engineerName(t.assigned_to_id) ?? 'unassigned', engineerEmail(t.assigned_to_id),
     ].join(' ').toLowerCase();
     return haystack.includes(q);
   });
@@ -88,10 +102,26 @@ function TicketTable({ title, tickets }) {
           <MenuItem value="">Any type</MenuItem>
           {ISSUE_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
         </TextField>
-        <TextField id="ticket-created" select size="small" label="Created" value={createdWithin} onChange={(e) => withPageReset(setCreatedWithin)(e.target.value)} sx={{ minWidth: 150 }}>
-          <MenuItem value="">Any time</MenuItem>
-          {CREATED_RANGES.map((r) => <MenuItem key={r.days} value={String(r.days)}>{r.label}</MenuItem>)}
-        </TextField>
+        <TextField
+          id="ticket-created-from"
+          type="date"
+          size="small"
+          label="Created from"
+          value={createdFrom}
+          onChange={(e) => withPageReset(setCreatedFrom)(e.target.value)}
+          sx={{ minWidth: 170 }}
+          slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: createdTo || todayInput() } }}
+        />
+        <TextField
+          id="ticket-created-to"
+          type="date"
+          size="small"
+          label="Created to"
+          value={createdTo}
+          onChange={(e) => withPageReset(setCreatedTo)(e.target.value)}
+          sx={{ minWidth: 170 }}
+          slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: createdFrom || undefined, max: todayInput() } }}
+        />
         {isAdmin && (
           <SearchSelect
             id="ticket-building"
@@ -105,6 +135,9 @@ function TicketTable({ title, tickets }) {
             sx={{ minWidth: 220 }}
           />
         )}
+        <Button variant="text" startIcon={<FilterAltOffIcon />} onClick={clearFilters} disabled={!hasFilters}>
+          Clear filters
+        </Button>
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
@@ -156,7 +189,16 @@ function TicketTable({ title, tickets }) {
                   <TableCell>
                     {isEngineer
                       ? usersById[t.created_by_id]?.name
-                      : assignee ?? <Typography component="span" variant="body2" color="error">Unassigned</Typography>}
+                      : assignee
+                        ? (
+                          <>
+                            {assignee}
+                            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontFamily: monoFont }}>
+                              {engineerEmail(t.assigned_to_id)}
+                            </Typography>
+                          </>
+                        )
+                        : <Typography component="span" variant="body2" color="error">Unassigned</Typography>}
                   </TableCell>
                   {showRaised && <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>{formatAge(t.created_at)}</TableCell>}
                 </TableRow>

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, ticket, engineer, floor, building, note, seat, user
+from app.routes import auth, ticket, engineer, floor, building, note, seat, user, notification
 from app.config import settings
 import logging
 import traceback
@@ -33,6 +33,7 @@ app.include_router(building.router)
 app.include_router(note.router)
 app.include_router(seat.router)
 app.include_router(user.router)
+app.include_router(notification.router)
 
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, str]:

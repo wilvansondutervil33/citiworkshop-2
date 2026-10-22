@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import SearchSelect from '../common/SearchSelect.jsx';
-import { PRIORITIES } from '../../utils/tickets';
+import { ISSUE_TYPES, priorityForIssueType } from '../../utils/tickets';
 
-const EMPTY = { reporterId: '', buildingId: '', floorId: '', seatId: '', title: '', description: '', priority: 'Low' };
+const EMPTY = { reporterId: '', buildingId: '', floorId: '', seatId: '', title: '', description: '', issueType: '' };
 
 function ReportIssueDialog({ open, onClose }) {
-  const { role, me, users, floors, seats, buildingName, buildingDepartment, createTicket } = useFacilityData();
+  const { role, me, users, tickets, floors, seats, buildingName, buildingDepartment, createTicket } = useFacilityData();
   const isAdmin = role === 'Facility Admin';
   const [form, setForm] = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -33,14 +33,21 @@ function ReportIssueDialog({ open, onClose }) {
     .map((s) => ({ value: String(s.id), label: `Seat ${s.id} · ${s.seat_type}` }));
   const valid = form.seatId && form.title.trim() && form.description.trim();
 
-  // Mirrors the API: the issue type comes from the building's department, which also picks the engineer
+  // Mirrors the API: the issue type defaults to the building's department, engineers are only
+  // auto-assigned when the two match, and the priority comes from the issue type's history
   const department = form.buildingId ? buildingDepartment(Number(form.buildingId)) : null;
-  const autoAssigned = Boolean(department);
+  const issueType = form.issueType || department || 'Other';
+  const autoAssigned = Boolean(department) && issueType === department;
+  const expected = priorityForIssueType(tickets, issueType);
   let routingHint = null;
   if (form.buildingId) {
-    routingHint = autoAssigned
-      ? `Logged as a ${department} issue and sent to the least-busy engineer in this building.`
-      : 'This building has no department, so the ticket is logged as Other and a facility admin will assign it.';
+    const routing = autoAssigned
+      ? `It goes to the least-busy ${department} engineer in this building.`
+      : `This building's engineers handle ${department ?? 'no specific'} issues, so a facility admin will assign it.`;
+    const priority = expected.count
+      ? `Priority will be ${expected.priority}: ${issueType} issues take ${expected.days.toFixed(1)} days to close on average.`
+      : `Priority will be Low: there are no closed ${issueType} tickets to go on yet.`;
+    routingHint = `${routing} ${priority}`;
   }
 
   const handleClose = () => {
@@ -54,7 +61,7 @@ function ReportIssueDialog({ open, onClose }) {
     const ok = await createTicket({
       title: form.title.trim(),
       description: form.description.trim(),
-      priority: form.priority,
+      issue_type: issueType,
       location_id: Number(form.seatId),
       ...(isAdmin && form.reporterId ? { created_by_id: Number(form.reporterId) } : {}),
     }, autoAssigned ? 'Issue reported and sent to an engineer' : 'Issue reported. A facility admin will assign it.');
@@ -84,7 +91,7 @@ function ReportIssueDialog({ open, onClose }) {
           placeholder="Type a building name"
           options={buildingOptions}
           value={form.buildingId}
-          onChange={(value) => setForm((prev) => ({ ...prev, buildingId: value, floorId: '', seatId: '' }))}
+          onChange={(value) => setForm((prev) => ({ ...prev, buildingId: value, floorId: '', seatId: '', issueType: '' }))}
           noOptionsText="No buildings match"
         />
         <SearchSelect
@@ -110,8 +117,15 @@ function ReportIssueDialog({ open, onClose }) {
         <TextField id="report-title" label="What's wrong?" value={form.title} onChange={set('title')} slotProps={{ htmlInput: { maxLength: 100 } }} />
         <TextField id="report-description" label="Details" multiline minRows={3} value={form.description} onChange={set('description')}
           helperText={`${form.description.length}/255`} slotProps={{ htmlInput: { maxLength: 255 } }} />
-        <TextField id="report-priority" select label="Priority" value={form.priority} onChange={set('priority')}>
-          {PRIORITIES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+        <TextField
+          id="report-issue-type"
+          select
+          label="Issue type"
+          value={issueType}
+          onChange={set('issueType')}
+          helperText={department ? `Defaults to this building's department (${department})` : 'Pick a building to see its department'}
+        >
+          {ISSUE_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
         </TextField>
         {routingHint && <Alert severity={autoAssigned ? 'success' : 'info'}>{routingHint}</Alert>}
       </DialogContent>

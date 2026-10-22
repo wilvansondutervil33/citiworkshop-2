@@ -65,6 +65,36 @@ Add realistic sample tickets (and engineer notes) for demos and analytics, or re
 
 Each ticket's issue type follows its building's department, most older tickets are closed, and engineers stay within their open-ticket limit. Generated tickets end with "(sample data)" in their description, which is how `--remove` finds them; real tickets are never touched. Locally: `python -m db.generate_tickets 1000` / `python -m db.generate_tickets --remove` from `backend/facilities`.
 
+## More demo engineers
+
+`db/add_engineers.py` adds 40 demo engineers (password `EngineerPass123!`, limit 5 open tickets each), spread evenly over the active buildings. Anyone whose email already exists is skipped.
+
+```bash
+# AWS
+aws lambda invoke --function-name coding-workshop-facilities-$PARTICIPANT_ID \
+  --payload '{"task": "add-engineers"}' --cli-binary-format raw-in-base64-out out.json && cat out.json
+# Local, from backend/facilities
+python -m db.add_engineers
+```
+
+## Notifications and email
+
+When a note is added or a ticket's status changes, the ticket's reporter and assigned engineer (not the person who made the change, and not deactivated users) get:
+
+- an in-app notification: the bell in the sidebar (top bar on phones) lists unread ones; opening one marks it read and opens the ticket
+- an email, written to the `email_outbox` table and the Lambda logs
+
+The tables are created by `scripts/create_tables.py` (locally: `python -m scripts.create_tables`); on AWS, run `./bin/init-database.sh` once after deploying. It adds missing tables and doesn't re-seed.
+
+Emails aren't delivered yet (`EMAIL_MODE=outbox`, the default): `@acme.inc` isn't a real domain and SES starts in sandbox mode. To send for real through Amazon SES:
+
+1. Verify a sender address or domain in SES (and request production access, or verify each recipient while in the sandbox).
+2. Give the Lambda a route to SES: an SES VPC interface endpoint, or a NAT gateway.
+3. Allow `ses:SendEmail` on the Lambda role.
+4. Add `EMAIL_MODE = "ses"` and `EMAIL_FROM = "<verified address>"` to `env_vars` in `infra/locals.tf`, then redeploy.
+
+Failed sends are recorded on the outbox row (`status = 'failed'`, with the error) and never fail the user's action.
+
 ## Check it
 
 ```bash

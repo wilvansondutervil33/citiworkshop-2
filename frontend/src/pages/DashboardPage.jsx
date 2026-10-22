@@ -22,7 +22,7 @@ function DashboardPage() {
           <KpiRow tickets={tickets} />
           <WorkflowStrip tickets={tickets} />
           <Box sx={twoColumns}>
-            <TicketFeed title="Needs attention" subtitle="Blocked or critical" tickets={attention} />
+            <TicketFeed title="Needs attention" subtitle="Blocked or critical, most urgent first" tickets={attention} limit={10} />
             <EngineerWorkload />
           </Box>
         </Box>

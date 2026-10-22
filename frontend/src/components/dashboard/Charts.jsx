@@ -5,17 +5,21 @@ import DonutChart from '../common/DonutChart.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import {
   ISSUE_TYPES, ISSUE_TYPE_COLORS, PRIORITIES, PRIORITY_COLORS, STATUSES, STATUS_COLORS,
-  averageDuration, countBy, formatDuration, isActive, statusLabel, ticketCode,
+  averageDuration, countBy, formatAge, formatDuration, isActive, statusLabel, ticketCode,
 } from '../../utils/tickets';
 import { monoFont } from '../../theme';
+
+const SILENT_TICKETS_SHOWN = 5;
 
 // Categorical colours for buildings, assigned in a fixed order by building id
 const BUILDING_COLORS = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--series-${n})`);
 
+// Closed tickets are left out so the chart shows the work that's still in the pipeline
 export function StatusChart({ tickets }) {
   const counts = countBy(tickets, (t) => t.status);
-  const data = STATUSES.map((s) => ({ label: statusLabel(s), value: counts[s] || 0, color: STATUS_COLORS[s].fg }));
-  return <Panel title="By status"><DonutChart data={data} /></Panel>;
+  const data = STATUSES.filter((s) => s !== 'Closed')
+    .map((s) => ({ label: statusLabel(s), value: counts[s] || 0, color: STATUS_COLORS[s].fg }));
+  return <Panel title="By status" subtitle="Excluding closed"><DonutChart data={data} centerLabel="not closed" /></Panel>;
 }
 
 export function PriorityChart({ tickets }) {
@@ -76,7 +80,11 @@ export function CommunicationPanel({ tickets }) {
   const { notesFor, usersById, openTicket } = useFacilityData();
   const noteCounts = tickets.map((t) => ({ ticket: t, notes: notesFor(t.id).length }));
   const average = noteCounts.reduce((sum, x) => sum + x.notes, 0) / (noteCounts.length || 1);
-  const silent = noteCounts.filter((x) => !x.notes && isActive(x.ticket));
+  // Longest-waiting first; only the first few are listed
+  const silent = noteCounts
+    .filter((x) => !x.notes && isActive(x.ticket))
+    .sort((a, b) => new Date(a.ticket.created_at ?? 0) - new Date(b.ticket.created_at ?? 0));
+  const shown = silent.slice(0, SILENT_TICKETS_SHOWN);
 
   return (
     <Panel title="Reporter communication" subtitle="Are people kept informed?">
@@ -85,14 +93,21 @@ export function CommunicationPanel({ tickets }) {
         <Stat label="Active, no update" value={silent.length} detail={silent.length ? 'Reporter has heard nothing' : 'Every active ticket has a note'} />
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {silent.map(({ ticket }) => (
+        {shown.map(({ ticket }) => (
           <Box key={ticket.id} sx={{ borderLeft: `2px solid ${STATUS_COLORS[ticket.status].fg}`, pl: 1.5 }}>
             <Link component="button" underline="hover" color="text.primary" onClick={() => openTicket(ticket.id)} sx={{ fontWeight: 600, textAlign: 'left' }}>
               {ticketCode(ticket.id)} · {ticket.title}
             </Link>
-            <Typography variant="caption" display="block" color="text.secondary">Raised by {usersById[ticket.created_by_id]?.name ?? 'unknown'}</Typography>
+            <Typography variant="caption" display="block" color="text.secondary">
+              Raised by {usersById[ticket.created_by_id]?.name ?? 'unknown'}{ticket.created_at ? ` · ${formatAge(ticket.created_at)}` : ''}
+            </Typography>
           </Box>
         ))}
+        {silent.length > shown.length && (
+          <Typography variant="caption" color="text.secondary">
+            Showing the {shown.length} waiting longest · {silent.length - shown.length} more without an update
+          </Typography>
+        )}
       </Box>
     </Panel>
   );

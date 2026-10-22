@@ -67,6 +67,11 @@ export function FacilityDataProvider({ children }) {
       return engineer ? usersById[engineer.user_id]?.name ?? `Engineer ${engineerId}` : null;
     };
 
+    const engineerEmail = (engineerId) => {
+      const engineer = engineersById[engineerId];
+      return engineer ? usersById[engineer.user_id]?.email ?? null : null;
+    };
+
     const buildingName = (buildingId) => buildingsById[buildingId]?.name ?? `Building ${buildingId}`;
     const buildingDepartment = (buildingId) => buildingsById[buildingId]?.department ?? null;
 
@@ -95,7 +100,7 @@ export function FacilityDataProvider({ children }) {
     const notesFor = (ticketId) => raw.notes.filter((n) => n.ticket_id === ticketId);
     const noteAuthor = (note) => usersById[note.author_id]?.name ?? 'Unknown';
 
-    return { usersById, me, myEngineer, engineerName, buildingName, buildingDepartment, locate, notesFor, noteAuthor, activeBuildings, activeFloors, activeSeats };
+    return { usersById, me, myEngineer, engineerName, engineerEmail, buildingName, buildingDepartment, locate, notesFor, noteAuthor, activeBuildings, activeFloors, activeSeats };
   }, [raw, user]);
 
   // Tickets each role is responsible for
@@ -131,6 +136,11 @@ export function FacilityDataProvider({ children }) {
     };
     return runAction(() => apiClient.put(`/tickets/${ticket.id}`, payload), successMessage);
   }, [runAction]);
+
+  // Status-only change: admins any status; the assigned engineer and the reporter their usual moves
+  const setTicketStatus = useCallback((ticket, status, successMessage) => (
+    runAction(() => apiClient.put(`/tickets/${ticket.id}/status`, { status }), successMessage)
+  ), [runAction]);
 
   const createTicket = useCallback((payload, successMessage) => (
     runAction(() => apiClient.post('/tickets', { status: 'Open', assigned_to_id: null, created_by_id: lookups.me?.id, ...payload }), successMessage ?? 'Issue reported')
@@ -231,6 +241,7 @@ export function FacilityDataProvider({ children }) {
     reload: load,
     notify,
     updateTicket,
+    setTicketStatus,
     createTicket,
     addNote,
     setUserActive,

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     postgres_user: str | None = None
     postgres_pass: str | None = None
 
+    # "outbox": store and log emails only (default). "ses": also send them through AWS SES.
+    email_mode: str = "outbox"
+    email_from: str = "facilities@acme.inc"
+
     model_config = SettingsConfigDict(env_file= ".env", extra="ignore")
 
     @property

@@ -10,6 +10,7 @@ http_handler = Mangum(app, api_gateway_base_path=API_BASE_PATH, lifespan="off")
 
 def run_task(event):
     from app import database
+    from db.add_engineers import add_engineers
     from db.generate_tickets import generate_tickets, remove_generated
     from db.init_db import init_db
 
@@ -17,6 +18,7 @@ def run_task(event):
         "init-db": lambda: init_db(),
         "generate-tickets": lambda: generate_tickets(int(event.get("count", 1000)), int(event.get("days", 90))),
         "remove-generated": lambda: remove_generated(),
+        "add-engineers": lambda: add_engineers(),
     }
     task = tasks.get(event["task"])
     if task is None:

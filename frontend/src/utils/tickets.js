@@ -38,6 +38,19 @@ export const ENGINEER_NEXT_STATUS = {
   Closed: [],
 };
 
+// New tickets get a priority from how long their issue type usually takes to close.
+// Mirrors priority_for_days in the backend (app/routes/ticket.py).
+export const LOW_PRIORITY_MAX_DAYS = 2;
+export const MEDIUM_PRIORITY_MAX_DAYS = 3;
+
+export function priorityForIssueType(tickets, issueType) {
+  const { ms, count } = averageDuration(tickets.filter((t) => t.issue_type === issueType), 'created_at', 'closed_at');
+  const days = count ? ms / 86400000 : null;
+  let priority = 'Low';
+  if (days !== null && days >= LOW_PRIORITY_MAX_DAYS) priority = days <= MEDIUM_PRIORITY_MAX_DAYS ? 'Medium' : 'Critical';
+  return { priority, days, count };
+}
+
 export const statusLabel = (status) => (status === 'In-Progress' ? 'In Progress' : status);
 
 export const isActive = (ticket) => ACTIVE_STATUSES.includes(ticket.status);

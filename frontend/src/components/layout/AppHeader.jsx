@@ -13,6 +13,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import ColorModeToggle from '../common/ColorModeToggle.jsx';
+import NotificationBell from './NotificationBell.jsx';
 import { monoFont } from '../../theme';
 
 const drawerWidth = 240;
@@ -44,11 +45,15 @@ function AppHeader({ username, role, onLogout, children }) {
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: rail.main, color: rail.contrastText, p: 1.75 }}>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, px: 1, py: 1 }}>
-        <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 22, fontStretch: '80%' }}>ACME</Typography>
-        <Typography sx={{ fontFamily: monoFont, fontSize: 11, color: rail.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Facilities Desk
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 1, py: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexGrow: 1 }}>
+          <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 22, fontStretch: '80%' }}>ACME</Typography>
+          <Typography sx={{ fontFamily: monoFont, fontSize: 11, color: rail.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Facilities Desk
+          </Typography>
+        </Box>
+        {/* On phones the bell lives in the top bar instead */}
+        {!isMobile && <NotificationBell />}
       </Box>
 
       <Typography variant="overline" sx={{ color: rail.muted, px: 1, mt: 3 }}>Workspace</Typography>
@@ -101,7 +106,8 @@ function AppHeader({ username, role, onLogout, children }) {
             <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ mr: 1 }}>
               <MenuIcon />
             </IconButton>
-            <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 20 }}>ACME</Typography>
+            <Typography sx={{ fontFamily: 'h4.fontFamily', fontWeight: 800, fontSize: 20, flexGrow: 1 }}>ACME</Typography>
+            <NotificationBell />
           </Toolbar>
         </AppBar>
       )}

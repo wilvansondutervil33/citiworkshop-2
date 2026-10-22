@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
-from app.models import IssueType
+from app.models import IssueType, TicketStatus
 
 class TicketBase(BaseModel):
     title: str
@@ -13,7 +13,8 @@ class TicketBase(BaseModel):
     location_id:int
     
 class TicketCreate(TicketBase):
-    "Same Fields"
+    # Priority is worked out from the issue type's history when the ticket is created
+    priority: str | None = None
 
 class TicketRead(TicketBase):
     id:int
@@ -25,3 +26,6 @@ class TicketRead(TicketBase):
 
 class TicketUpdate(TicketBase):
     "Same Fields"
+
+class TicketStatusUpdate(BaseModel):
+    status: TicketStatus
