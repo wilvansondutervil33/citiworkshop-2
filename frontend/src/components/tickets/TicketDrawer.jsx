@@ -4,6 +4,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { PriorityLabel, StatusChip } from '../common/TicketBadges.jsx';
+import SearchSelect from '../common/SearchSelect.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
 import { ENGINEER_NEXT_STATUS, ISSUE_TYPES, PRIORITIES, STATUSES, formatAge, isActive, statusLabel, ticketCode } from '../../utils/tickets';
 import { monoFont } from '../../theme';
@@ -21,30 +22,44 @@ function Detail({ label, children }) {
 }
 
 function RoleControls({ ticket }) {
-  const { role, engineers, engineerName, engineerEmail, buildingName, updateTicket, setTicketStatus } = useFacilityData();
+  const {
+    role, engineers, tickets, locate, engineerName, engineerEmail, buildingName, buildingDepartment, updateTicket, setTicketStatus,
+  } = useFacilityData();
 
   if (role === 'Facility Admin') {
+    // Suggest engineers in the ticket's building first, then whoever has the most free slots
+    const ticketBuilding = locate(ticket.location_id).buildingId;
+    const engineerOptions = engineers
+      .map((e) => {
+        const load = tickets.filter((t) => t.assigned_to_id === e.id && isActive(t)).length;
+        const free = e.max_workload - load;
+        return {
+          value: String(e.id),
+          label: `${engineerName(e.id)} · ${buildingName(e.building_id)} · ${free > 0 ? `${free} free` : 'full'}`,
+          searchText: `${engineerEmail(e.id) ?? ''} ${buildingDepartment(e.building_id) ?? ''}`,
+          sameBuilding: e.building_id === ticketBuilding,
+          free,
+        };
+      })
+      .sort((a, b) => (b.sameBuilding - a.sameBuilding) || (b.free - a.free) || a.label.localeCompare(b.label));
+
     return (
       <Box sx={{ display: 'grid', gap: 1.5 }}>
-        <TextField
-          id="drawer-assignee" select size="small" label="Assigned engineer"
-          value={ticket.assigned_to_id ?? ''}
-          slotProps={{ select: { renderValue: (id) => (id === '' ? 'Unassigned' : `${engineerName(id)} · ${buildingName(engineers.find((e) => e.id === id)?.building_id)}`), displayEmpty: true } }}
-          onChange={(e) => {
-            const id = e.target.value === '' ? null : Number(e.target.value);
+        <SearchSelect
+          id="drawer-assignee"
+          size="small"
+          label="Assigned engineer"
+          placeholder="Unassigned · type a name"
+          options={engineerOptions}
+          value={ticket.assigned_to_id ? String(ticket.assigned_to_id) : ''}
+          onChange={(value) => {
+            const id = value ? Number(value) : null;
+            if (id === (ticket.assigned_to_id ?? null)) return;
             updateTicket(ticket, { assigned_to_id: id }, id ? `Assigned to ${engineerName(id)}` : 'Assignment removed');
           }}
-        >
-          <MenuItem value="">Unassigned</MenuItem>
-          {engineers.map((e) => (
-            <MenuItem key={e.id} value={e.id} sx={{ display: 'block' }}>
-              {engineerName(e.id)} · {buildingName(e.building_id)}
-              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontFamily: monoFont }}>
-                {engineerEmail(e.id)}
-              </Typography>
-            </MenuItem>
-          ))}
-        </TextField>
+          helperText="Empty box: 5 suggestions from this building first. Type to search all engineers by name or email."
+          noOptionsText="No engineers match"
+        />
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
           <TextField
             id="drawer-status" select size="small" label="Status" value={ticket.status}

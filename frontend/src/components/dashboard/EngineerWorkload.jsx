@@ -6,6 +6,8 @@ import { STATUS_COLORS, isActive } from '../../utils/tickets';
 
 // Lists engineers who can still take tickets (most free slots first); full ones are hidden
 // behind "Show all" so it's easy to see who to assign work to
+const MAX_SHOWN = 10;
+
 function EngineerWorkload() {
   const { engineers, tickets, engineerName, buildingName, buildingDepartment } = useFacilityData();
   const [showAll, setShowAll] = useState(false);
@@ -19,7 +21,8 @@ function EngineerWorkload() {
 
   const withRoom = rows.filter((r) => r.free > 0);
   const atCapacity = rows.length - withRoom.length;
-  const shown = showAll ? rows : withRoom;
+  const candidates = showAll ? rows : withRoom;
+  const shown = candidates.slice(0, MAX_SHOWN);
 
   let summary = 'No engineer profiles yet.';
   if (rows.length) {
@@ -63,6 +66,11 @@ function EngineerWorkload() {
             </Box>
           );
         })}
+        {candidates.length > shown.length && (
+          <Typography variant="caption" color="text.secondary">
+            Showing {shown.length} of {candidates.length}{showAll ? '' : ' with room'}, most free slots first. See everyone on the Users page.
+          </Typography>
+        )}
       </Box>
     </Panel>
   );

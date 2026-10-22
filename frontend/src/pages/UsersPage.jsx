@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, InputAdornment, MenuItem,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -11,6 +11,8 @@ import Panel from '../components/common/Panel.jsx';
 import { useFacilityData } from '../context/FacilityDataContext.jsx';
 import { STATUS_COLORS as TICKET_COLORS, isActive } from '../utils/tickets';
 import { monoFont } from '../theme';
+
+const PAGE_SIZE = 20;
 
 const ROLES = ['Facility Admin', 'Employee', 'Engineer'];
 
@@ -34,6 +36,13 @@ function UsersPage() {
   const [confirming, setConfirming] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [page, setPage] = useState(0);
+
+  // Any search or filter change goes back to the first page
+  const withPageReset = (setter) => (value) => {
+    setter(value);
+    setPage(0);
+  };
 
   const rows = users.map((user) => {
     const engineer = engineers.find((e) => e.user_id === user.id);
@@ -52,6 +61,10 @@ function UsersPage() {
     const q = query.trim().toLowerCase();
     return !q || [r.name, r.email, r.role].join(' ').toLowerCase().includes(q);
   });
+
+  const lastPage = Math.max(0, Math.ceil(visible.length / PAGE_SIZE) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const pageRows = visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   const changeStatus = async (user, active) => {
     setConfirming(null);
@@ -75,15 +88,15 @@ function UsersPage() {
             size="small"
             placeholder="Search name or email…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => withPageReset(setQuery)(e.target.value)}
             sx={{ flex: '1 1 220px' }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
           />
-          <TextField id="user-role" select size="small" label="Role" value={role} onChange={(e) => setRole(e.target.value)} sx={{ minWidth: 160 }}>
+          <TextField id="user-role" select size="small" label="Role" value={role} onChange={(e) => withPageReset(setRole)(e.target.value)} sx={{ minWidth: 160 }}>
             <MenuItem value="">All roles</MenuItem>
             {ROLES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
           </TextField>
-          <TextField id="user-status" select size="small" label="Status" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 140 }}>
+          <TextField id="user-status" select size="small" label="Status" value={status} onChange={(e) => withPageReset(setStatus)(e.target.value)} sx={{ minWidth: 140 }}>
             <MenuItem value="">Any status</MenuItem>
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="inactive">Deactivated</MenuItem>
@@ -102,7 +115,7 @@ function UsersPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {visible.map((r) => {
+              {pageRows.map((r) => {
                 const roleColors = ROLE_COLORS[r.role] ?? ROLE_COLORS.Employee;
                 const statusColors = r.is_active ? STATUS_COLORS.active : STATUS_COLORS.inactive;
                 const isMe = r.id === me?.id;
@@ -148,6 +161,19 @@ function UsersPage() {
             </TableBody>
           </Table>
         </TableContainer>
+        {visible.length > PAGE_SIZE && (
+          <TablePagination
+            component="div"
+            count={visible.length}
+            page={currentPage}
+            onPageChange={(_, next) => setPage(next)}
+            rowsPerPage={PAGE_SIZE}
+            rowsPerPageOptions={[PAGE_SIZE]}
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} of ${count} users`}
+            showFirstButton
+            showLastButton
+          />
+        )}
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
           Active tickets: for engineers, open tickets assigned to them out of their limit; for employees, open tickets they reported.
         </Typography>
