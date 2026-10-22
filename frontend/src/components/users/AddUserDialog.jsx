@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
+import { PASSWORD_HINT, passwordProblem } from '../../utils/password';
 
 const ROLES = ['Employee', 'Engineer', 'Facility Admin'];
 const EMPTY = { name: '', email: '', password: '', role: 'Employee', buildingId: '', maxWorkload: '5' };
@@ -8,9 +9,12 @@ const EMPTY = { name: '', email: '', password: '', role: 'Employee', buildingId:
 // Mirrors the API's rules so most mistakes are caught before submitting
 function validate(form) {
   const errors = {};
-  if (form.name.trim().length < 2 || form.name.trim().length > 25) errors.name = 'Use 2 to 25 characters.';
+  const name = form.name.split(/\s+/).filter(Boolean).join(' ');
+  if (name.length < 2) errors.name = "Enter a name with at least 2 characters that aren't spaces.";
+  else if (name.length > 25) errors.name = 'Use at most 25 characters.';
   if (!/^[^\s@]+@acme\.inc$/i.test(form.email.trim())) errors.email = 'Use an @acme.inc email address.';
-  if (form.password.length < 8) errors.password = 'Use at least 8 characters.';
+  const passwordError = passwordProblem(form.password);
+  if (passwordError) errors.password = passwordError;
   if (form.role === 'Engineer') {
     if (!form.buildingId) errors.buildingId = 'Pick the building they work in.';
     if (!(Number(form.maxWorkload) >= 1)) errors.maxWorkload = 'Use 1 or more.';
@@ -54,7 +58,7 @@ function AddUserDialog({ open, onClose }) {
         <TextField id="new-user-email" label="Email" type="email" placeholder="first.last@acme.inc" value={form.email} onChange={set('email')}
           error={Boolean(showError('email'))} helperText={showError('email')} />
         <TextField id="new-user-password" label="Temporary password" type="password" value={form.password} onChange={set('password')}
-          error={Boolean(showError('password'))} helperText={showError('password') ?? 'Share it with them so they can log in.'} autoComplete="new-password" />
+          error={Boolean(showError('password'))} helperText={showError('password') ?? `${PASSWORD_HINT} Share it with them so they can log in.`} autoComplete="new-password" />
         <TextField id="new-user-role" select label="Role" value={form.role} onChange={set('role')}>
           {ROLES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
         </TextField>

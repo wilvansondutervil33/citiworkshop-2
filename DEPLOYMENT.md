@@ -53,6 +53,18 @@ Run from the repository root, in this order:
 
 These passwords are public in this repo. Change them, or don't load the demo data, for anything beyond the workshop.
 
+## Sample tickets
+
+Add realistic sample tickets (and engineer notes) for demos and analytics, or remove them again:
+
+```bash
+./bin/generate-tickets.sh              # 1000 tickets created over the last 90 days
+./bin/generate-tickets.sh 500 30       # 500 tickets over the last 30 days
+./bin/generate-tickets.sh --remove     # delete every generated ticket and its notes
+```
+
+Each ticket's issue type follows its building's department, most older tickets are closed, and engineers stay within their open-ticket limit. Generated tickets end with "(sample data)" in their description, which is how `--remove` finds them; real tickets are never touched. Locally: `python -m db.generate_tickets 1000` / `python -m db.generate_tickets --remove` from `backend/facilities`.
+
 ## Check it
 
 ```bash
@@ -88,3 +100,13 @@ python -m scripts.add_note_author
 ```
 
 `backend/facilities/requirements.txt` is the lean list packaged into the Lambda; `backend/requirements.txt` is the full local environment.
+
+## Tests
+
+```bash
+cd backend/facilities
+source ../.venv/bin/activate
+pytest
+```
+
+The suite (`backend/facilities/tests/`) needs the local PostgreSQL server from `.env`. Each run creates a separate `acme_facilities_test` database, loads the demo data, and drops it at the end, so your development data is untouched. Run it before deploying; the tests aren't included in the Lambda package.

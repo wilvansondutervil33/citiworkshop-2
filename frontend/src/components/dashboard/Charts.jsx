@@ -3,10 +3,14 @@ import Panel from '../common/Panel.jsx';
 import BarList from '../common/BarList.jsx';
 import DonutChart from '../common/DonutChart.jsx';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
-import { ISSUE_TYPES, ISSUE_TYPE_COLORS, PRIORITIES, PRIORITY_COLORS, STATUSES, STATUS_COLORS, countBy, isActive, statusLabel, ticketCode } from '../../utils/tickets';
+import {
+  ISSUE_TYPES, ISSUE_TYPE_COLORS, PRIORITIES, PRIORITY_COLORS, STATUSES, STATUS_COLORS,
+  averageDuration, countBy, formatDuration, isActive, statusLabel, ticketCode,
+} from '../../utils/tickets';
+import { monoFont } from '../../theme';
 
 // Categorical colours for buildings, assigned in a fixed order by building id
-const BUILDING_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+const BUILDING_COLORS = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--series-${n})`);
 
 export function StatusChart({ tickets }) {
   const counts = countBy(tickets, (t) => t.status);
@@ -39,7 +43,7 @@ export function BuildingChart({ tickets }) {
   if (rest.length === 1) {
     data.push({ label: buildingName(rest[0]), value: counts[rest[0]] || 0, color: BUILDING_COLORS.at(-1) });
   } else if (rest.length) {
-    data.push({ label: 'Other buildings', value: rest.reduce((sum, id) => sum + (counts[id] || 0), 0), color: '#8a8f99' });
+    data.push({ label: 'Other buildings', value: rest.reduce((sum, id) => sum + (counts[id] || 0), 0), color: 'var(--series-other)' });
   }
   return <Panel title="Tickets by building"><DonutChart data={data} /></Panel>;
 }
@@ -87,6 +91,48 @@ export function CommunicationPanel({ tickets }) {
               {ticketCode(ticket.id)} · {ticket.title}
             </Link>
             <Typography variant="caption" display="block" color="text.secondary">Raised by {usersById[ticket.created_by_id]?.name ?? 'unknown'}</Typography>
+          </Box>
+        ))}
+      </Box>
+    </Panel>
+  );
+}
+
+// Average time from created to closed for each issue type. The API records when a ticket is
+// closed but not when it's marked Resolved, so only closed tickets count.
+export function ResolutionTimeByType({ tickets }) {
+  const rows = ISSUE_TYPES.map((type) => {
+    const ofType = tickets.filter((t) => t.issue_type === type);
+    const { ms, count } = averageDuration(ofType, 'created_at', 'closed_at');
+    return { type, ms, count, open: ofType.filter(isActive).length };
+  });
+  const slowest = Math.max(0, ...rows.map((r) => r.ms ?? 0));
+  const closedTotal = rows.reduce((sum, r) => sum + r.count, 0);
+
+  return (
+    <Panel title="Time to resolve by issue type" subtitle="Average from created to closed">
+      {!closedTotal && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          No closed tickets yet. Times appear here once tickets are closed.
+        </Typography>
+      )}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        {rows.map((r) => (
+          <Box key={r.type}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{r.type}</Typography>
+              <Typography variant="body2" sx={{ fontFamily: monoFont, fontVariantNumeric: 'tabular-nums' }}>
+                {r.count ? formatDuration(r.ms) : '—'}
+              </Typography>
+            </Box>
+            <Box sx={{ height: 8, borderRadius: 4, bgcolor: 'background.default', overflow: 'hidden', my: 0.5 }}>
+              {r.count > 0 && (
+                <Box sx={{ height: '100%', width: `${slowest ? Math.max(2, (r.ms / slowest) * 100) : 0}%`, bgcolor: ISSUE_TYPE_COLORS[r.type], borderRadius: 4 }} />
+              )}
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {r.count ? `${r.count} closed` : 'None closed yet'}{r.open ? ` · ${r.open} still open` : ''}
+            </Typography>
           </Box>
         ))}
       </Box>

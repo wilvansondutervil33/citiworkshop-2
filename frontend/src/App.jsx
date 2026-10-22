@@ -1,4 +1,4 @@
-import { Alert, CssBaseline, LinearProgress, ThemeProvider } from '@mui/material';
+import { Alert, LinearProgress } from '@mui/material';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import LoginForm from './components/auth/LoginForm.jsx';
@@ -12,7 +12,7 @@ import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import FacilitiesPage from './pages/FacilitiesPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
-import theme from './theme';
+import { ColorModeProvider } from './context/ColorModeContext.jsx';
 
 
 function AppRoutes() {
@@ -64,12 +64,11 @@ function AppContent() {
 function App(){
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ColorModeProvider>
       <AuthProvider>
         <AppContent/>
       </AuthProvider>
-    </ThemeProvider>
+    </ColorModeProvider>
   )
 }
 

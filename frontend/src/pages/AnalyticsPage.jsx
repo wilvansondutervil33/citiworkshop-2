@@ -2,7 +2,9 @@ import { Box } from '@mui/material';
 import PageHeader from '../components/common/PageHeader.jsx';
 import KpiRow from '../components/dashboard/KpiRow.jsx';
 import EngineerWorkload from '../components/dashboard/EngineerWorkload.jsx';
-import { BuildingChart, CommunicationPanel, FloorHotspots, IssueTypeChart, PriorityChart, StatusChart } from '../components/dashboard/Charts.jsx';
+import {
+  BuildingChart, CommunicationPanel, FloorHotspots, IssueTypeChart, PriorityChart, ResolutionTimeByType, StatusChart,
+} from '../components/dashboard/Charts.jsx';
 import { useFacilityData } from '../context/FacilityDataContext.jsx';
 
 const SUBTITLES = {
@@ -11,6 +13,7 @@ const SUBTITLES = {
   Engineer: 'How your assigned tickets are moving.',
 };
 
+const twoColumns = { display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, alignItems: 'start' };
 const columns = { display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: 'repeat(3, 1fr)' }, alignItems: 'start' };
 
 function AnalyticsPage() {
@@ -34,10 +37,16 @@ function AnalyticsPage() {
               <FloorHotspots tickets={scopedTickets} />
               <CommunicationPanel tickets={scopedTickets} />
             </Box>
-            <EngineerWorkload />
+            <Box sx={twoColumns}>
+              <ResolutionTimeByType tickets={scopedTickets} />
+              <EngineerWorkload />
+            </Box>
           </>
         ) : (
-          <CommunicationPanel tickets={scopedTickets} />
+          <Box sx={twoColumns}>
+            <ResolutionTimeByType tickets={scopedTickets} />
+            <CommunicationPanel tickets={scopedTickets} />
+          </Box>
         )}
       </Box>
     </>

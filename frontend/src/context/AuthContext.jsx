@@ -28,12 +28,18 @@ export function AuthProvider ({children}){
         setToken(response.data.access_token);
     }
 
+    // Self-service sign-up always creates an Employee account, then logs straight in
+    const signup = async (name, email, password) => {
+        await apiClient.post('/auth/signup', { name, email, password });
+        await login(email, password);
+    };
+
     const logout = useCallback(() =>{
         localStorage.removeItem('workToken');
         setToken(null);
     }, []);
 
-    const value = {token, user, isAuthenticated: Boolean(token), login, logout};
+    const value = {token, user, isAuthenticated: Boolean(token), login, signup, logout};
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

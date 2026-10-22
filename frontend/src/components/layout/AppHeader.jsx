@@ -12,6 +12,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useFacilityData } from '../../context/FacilityDataContext.jsx';
+import ColorModeToggle from '../common/ColorModeToggle.jsx';
 import { monoFont } from '../../theme';
 
 const drawerWidth = 240;
@@ -77,6 +78,7 @@ function AppHeader({ username, role, onLogout, children }) {
       </List>
 
       <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, px: 1 }}>
+        <ColorModeToggle sx={{ alignSelf: 'flex-start', '& .MuiToggleButton-root': { borderColor: 'rgba(255,255,255,0.16)' }, '& .Mui-selected': { bgcolor: 'rgba(255,255,255,0.14) !important' } }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <Avatar sx={{ width: 30, height: 30, fontSize: 12, bgcolor: '#3a4a6e' }}>{initials}</Avatar>
           <Box sx={{ minWidth: 0 }}>

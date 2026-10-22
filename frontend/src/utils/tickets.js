@@ -3,22 +3,24 @@ export const ACTIVE_STATUSES = ['Open', 'In-Progress', 'Blocked'];
 export const PRIORITIES = ['Critical', 'Medium', 'Low'];
 export const ISSUE_TYPES = ['Software', 'Hardware', 'Network', 'Plumbing', 'Structural', 'Other'];
 
+// Colours are CSS variables defined per light/dark mode in theme.js
+
 // Categorical colours for issue types, in the same fixed order as ISSUE_TYPES
 export const ISSUE_TYPE_COLORS = {
-  Software: '#2a78d6',
-  Hardware: '#eb6834',
-  Network: '#1baf7a',
-  Plumbing: '#eda100',
-  Structural: '#e87ba4',
-  Other: '#6250d6',
+  Software: 'var(--series-1)',
+  Hardware: 'var(--series-2)',
+  Network: 'var(--series-3)',
+  Plumbing: 'var(--series-4)',
+  Structural: 'var(--series-5)',
+  Other: 'var(--series-6)',
 };
 
 export const STATUS_COLORS = {
-  Open: { fg: '#2f5bd3', bg: '#e6ecfb' },
-  'In-Progress': { fg: '#b26a00', bg: '#fbefd9' },
-  Blocked: { fg: '#c0362c', bg: '#fbe4e1' },
-  Resolved: { fg: '#1f7a4d', bg: '#dff2e7' },
-  Closed: { fg: '#5b6475', bg: '#e9ebf0' },
+  Open: { fg: 'var(--status-open-fg)', bg: 'var(--status-open-bg)' },
+  'In-Progress': { fg: 'var(--status-progress-fg)', bg: 'var(--status-progress-bg)' },
+  Blocked: { fg: 'var(--status-blocked-fg)', bg: 'var(--status-blocked-bg)' },
+  Resolved: { fg: 'var(--status-resolved-fg)', bg: 'var(--status-resolved-bg)' },
+  Closed: { fg: 'var(--status-closed-fg)', bg: 'var(--status-closed-bg)' },
 };
 
 export const PRIORITY_COLORS = {

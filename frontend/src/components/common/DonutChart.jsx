@@ -1,7 +1,7 @@
 import { Box, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { monoFont } from '../../theme';
+import { monoFont, resolveColor } from '../../theme';
 
 function SliceTooltip({ active, payload, total }) {
   if (!active || !payload?.length) return null;
@@ -21,7 +21,8 @@ function SliceTooltip({ active, payload, total }) {
 // so each slice is identified by text as well as colour
 function DonutChart({ data, centerLabel = 'tickets' }) {
   const theme = useTheme();
-  const slices = data.filter((d) => d.value > 0);
+  // SVG fills need real colour values, not var(--…)
+  const slices = data.filter((d) => d.value > 0).map((d) => ({ ...d, color: resolveColor(theme, d.color) }));
   const total = slices.reduce((sum, d) => sum + d.value, 0);
 
   if (!total) {

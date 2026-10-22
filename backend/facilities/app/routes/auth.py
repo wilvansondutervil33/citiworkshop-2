@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_role
 from app.models import User, UserRole
-from app.schemas.user import Token, UserCreate, UserRead
+from app.schemas.user import Token, UserCreate, UserRead, UserSignup
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -33,27 +33,29 @@ async def login(
     access_token = create_access_token(data = {'sub': user.email, "role": user.role.value})
     return Token(access_token=access_token, token_type="bearer")
 
+async def create_user(db: AsyncSession, email: str, name: str, password: str, role: UserRole) -> User:
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code= status.HTTP_400_BAD_REQUEST,
+            detail= f"Email '{email}' is already taken",
+        )
+
+    user = User(email = email, name = name, hashed_password = hash_password(password), role = role)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
 @router.post("/register", response_model= UserRead, status_code=status.HTTP_201_CREATED)
 async def register_user(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_role(UserRole.FACILITY_ADMIN)),
 ) -> User:
-    existing = await db.execute(select(User).where(User.email == payload.email))
-    if existing .scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code= status.HTTP_400_BAD_REQUEST,
-            detail= f"Email '{payload.email}' is already taken",
-        )
+    return await create_user(db, payload.email, payload.name, payload.hashed_password, payload.role)
 
-    user = User(
-        email = payload.email,
-        name = payload.name,
-        hashed_password = hash_password(payload.hashed_password),
-        role = payload.role
-    )
-
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+@router.post("/signup", response_model= UserRead, status_code=status.HTTP_201_CREATED)
+async def signup(payload: UserSignup, db: AsyncSession = Depends(get_db)) -> User:
+    """Public: employees create their own account. Admins and engineers are added by a facility admin."""
+    return await create_user(db, payload.email, payload.name, payload.password, UserRole.EMPLOYEE)

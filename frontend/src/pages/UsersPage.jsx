@@ -9,20 +9,21 @@ import AddUserDialog from '../components/users/AddUserDialog.jsx';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Panel from '../components/common/Panel.jsx';
 import { useFacilityData } from '../context/FacilityDataContext.jsx';
-import { isActive } from '../utils/tickets';
+import { STATUS_COLORS as TICKET_COLORS, isActive } from '../utils/tickets';
 import { monoFont } from '../theme';
 
 const ROLES = ['Facility Admin', 'Employee', 'Engineer'];
 
+// Reuse the ticket status colours so roles and account status follow light/dark mode
 const ROLE_COLORS = {
-  'Facility Admin': { fg: '#2f5bd3', bg: '#e6ecfb' },
-  Engineer: { fg: '#1f7a4d', bg: '#dff2e7' },
-  Employee: { fg: '#5b6475', bg: '#e9ebf0' },
+  'Facility Admin': TICKET_COLORS.Open,
+  Engineer: TICKET_COLORS.Resolved,
+  Employee: TICKET_COLORS.Closed,
 };
 
 const STATUS_COLORS = {
-  active: { fg: '#1f7a4d', bg: '#dff2e7' },
-  inactive: { fg: '#c0362c', bg: '#fbe4e1' },
+  active: TICKET_COLORS.Resolved,
+  inactive: TICKET_COLORS.Blocked,
 };
 
 function UsersPage() {

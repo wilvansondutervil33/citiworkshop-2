@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Paper, TextField, Typography} from '@mui/material';
+import { Alert, Box, Button, Link, Paper, TextField, Typography} from '@mui/material';
 import { useAuth } from '../../context/AuthContext.jsx';
+import SignUpForm from './SignUpForm.jsx';
+import ColorModeToggle from '../common/ColorModeToggle.jsx';
 
 
 function LoginForm (){
@@ -8,6 +10,7 @@ function LoginForm (){
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState(null)
+    const [mode, setMode] = useState('login')
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -39,9 +42,19 @@ function LoginForm (){
         }
     }
 
+    if (mode === 'signup'){
+        return (
+            <Box sx={{display: 'flex', justifyContent: 'center', mt: 8, px: 2}}>
+                <ColorModeToggle sx={{position: 'fixed', top: 16, right: 16}} />
+                <SignUpForm onShowLogin={() => setMode('login')} />
+            </Box>
+        )
+    }
+
     return(
-        <Box sx={{display: 'flex', justifyContent: 'center', mt: 8}}>
-            <Paper component='form' onSubmit={handleSubmit} variant='outline' sx={{p:4, width: 320}}>
+        <Box sx={{display: 'flex', justifyContent: 'center', mt: 8, px: 2}}>
+            <ColorModeToggle sx={{position: 'fixed', top: 16, right: 16}} />
+            <Paper component='form' onSubmit={handleSubmit} variant='outlined' sx={{p:4, width: 320, maxWidth: '100%'}}>
                 <Typography variant='h6' gutterBottom>
                     ACME Facilities Desk
                 </Typography>
@@ -62,6 +75,10 @@ function LoginForm (){
                 <Button type='submit' variant='contained' fullWidth sx={{mt:2}}>
                     Log-In
                 </Button>
+                <Typography variant='body2' sx={{mt: 2, textAlign: 'center'}}>
+                    New to ACME Facilities Desk?{' '}
+                    <Link component='button' type='button' onClick={() => { setError(null); setMode('signup') }}>Create an account</Link>
+                </Typography>
                 
             </Paper>
 

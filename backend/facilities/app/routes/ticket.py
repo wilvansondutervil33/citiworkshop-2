@@ -72,7 +72,7 @@ async def pick_engineer(db: AsyncSession, building: Building | None, issue_type:
             return engineer_id
     return None
 
-@router.post("", response_model=TicketCreate, status_code= status.HTTP_201_CREATED)
+@router.post("", response_model=TicketRead, status_code= status.HTTP_201_CREATED)
 async def create_ticket(payload: TicketCreate ,db: AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)) -> Ticket:
 
     ticket = Ticket(**payload.model_dump())
